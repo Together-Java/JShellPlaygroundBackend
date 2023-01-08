@@ -1,7 +1,5 @@
-FROM eclipse-temurin:19
+FROM eclipse-temurin:19-alpine
 
-WORKDIR /home
-
-COPY JShellWrapper/out/JShellWrapper.jar /home/JShellWrapper.jar
+COPY JShellWrapper/out/JShellWrapper.jar .
 
 CMD [ "java", "-jar", "JShellWrapper.jar" ]
