@@ -1,5 +1,6 @@
 package org.togetherjava.jshellapi.rest;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -14,7 +15,7 @@ import java.util.List;
 @RequestMapping("jshell")
 @RestController
 public class JShellController {
-    private final JShellSessionService service = new JShellSessionService();
+    private JShellSessionService service;
 
     @PostMapping("/eval/{id}")
     public JShellResult eval(@PathVariable String id, @RequestBody String code) throws DockerException {
@@ -37,5 +38,10 @@ public class JShellController {
     public void delete(@PathVariable String id) throws DockerException {
         if(!service.hasSession(id)) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Id " + id + " not found");
         service.deleteSession(id);
+    }
+
+    @Autowired
+    public void setService(JShellSessionService service) {
+        this.service = service;
     }
 }

@@ -21,10 +21,10 @@ public class JShellService implements Closeable {
     private final BufferedReader reader;
 
     private Instant lastTimeoutUpdate;
-    private final int timeout;
+    private final long timeout;
     private final boolean renewable;
 
-    public JShellService(String id, int timeout, boolean renewable) throws DockerException {
+    public JShellService(String id, long timeout, boolean renewable, long evalTimeout) throws DockerException {
         this.id = id;
         this.timeout = timeout;
         this.renewable = renewable;
@@ -43,7 +43,7 @@ public class JShellService implements Closeable {
                     "--read-only",
                     "--name", "\"user%s\"".formatted(id),
                     "jshellwrapper",
-                    "java", "-DevalTimeoutSeconds=15", "-jar", "JShellWrapper.jar")
+                    "java", "-DevalTimeoutSeconds=%d".formatted(evalTimeout), "-jar", "JShellWrapper.jar")
                     .directory(new File(".."))
                     .start();
             writer = process.outputWriter();
@@ -102,7 +102,7 @@ public class JShellService implements Closeable {
     }
 
     public boolean shouldDie() {
-        return lastTimeoutUpdate.plusSeconds(timeout * 60L).isBefore(Instant.now());
+        return lastTimeoutUpdate.plusSeconds(timeout).isBefore(Instant.now());
     }
 
     public void stop() throws DockerException {
