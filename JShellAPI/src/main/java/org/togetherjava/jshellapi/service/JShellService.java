@@ -42,13 +42,12 @@ public class JShellService implements Closeable {
                     "--memory=500M",
                     "--read-only",
                     "--name", "\"user%s\"".formatted(id),
-                    "jshellwrapper")
+                    "jshellwrapper",
+                    "java", "-DevalTimeoutSeconds=15", "-jar", "JShellWrapper.jar")
                     .directory(new File(".."))
                     .start();
             writer = process.outputWriter();
             reader = process.inputReader();
-            writer.write(timeout + " " + renewable);
-            writer.newLine();
         } catch (IOException e) {
             throw new DockerException(e);
         }
@@ -79,6 +78,7 @@ public class JShellService implements Closeable {
             }
             return new JShellResult(status, type, id, source, result, stdoutOverflow, stdout, errors);
         } catch (IOException | NumberFormatException ex) {
+            close();
             throw new DockerException(ex);
         }
     }
@@ -96,6 +96,7 @@ public class JShellService implements Closeable {
             }
             return snippets;
         } catch (IOException ex) {
+            close();
             throw new DockerException(ex);
         }
     }

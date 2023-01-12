@@ -11,51 +11,65 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
- * Format :
- * status
- * ADDITION/MODIFICATION
- * snippet id
- * source
- * result or NONE
- * is stdout overflow
- * stdout
- * error 1
- * error 2
- * etc
- * empty line
+ * Enter eval to evaluate code or snippets to see snippets, anything else to stop.
  */
 public class JShellWrapper {
-    public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
-        int timeout = scanner.nextInt();
-        boolean renewable = scanner.nextLine().equals("true");
 
+    public void run() {
+        Scanner scanner = new Scanner(System.in);
+        Config config = Config.load();
         StringOutputStream out = new StringOutputStream(1024);
         try (JShell shell = JShell.builder().out(new PrintStream(out)).build()) {
             while(true) {
                 String command = scanner.nextLine();
                 switch (command) {
-                    case "eval" -> eval(scanner, shell, out);
+                    case "eval" -> eval(scanner, config, shell, out);
                     case "snippets" -> snippets(shell);
                     default -> {
                         return;
                     }
                 }
+                System.out.flush();
             }
         }
     }
 
-    private static void eval(Scanner scanner, JShell shell, StringOutputStream out) {
-        String input = scanner.nextLine();
-        int lineCount = Integer.parseInt(input);
+    /**
+     * Input format :<br>
+     * <code><br>
+     * eval<br>
+     * line count<br>
+     * code for each line count lines<br>
+     * </code>
+     * Output format :<br>
+     * <code>
+     * status within VALID, RECOVERABLE_DEFINED, RECOVERABLE_NOT_DEFINED, REJECTED, ABORTED<br>
+     * ADDITION/MODIFICATION<br>
+     * snippet id<br>
+     * source<br>
+     * result or NONE<br>
+     * is stdout overflow<br>
+     * stdout<br>
+     * error 1<br>
+     * error 2<br>
+     * etc<br>
+     * empty line<br>
+     * </code>
+     */
+    private void eval(Scanner scanner, Config config, JShell shell, StringOutputStream out) {
+        TimeoutWatcher watcher = new TimeoutWatcher(config.evalTimeoutSeconds(), shell::stop);
+        int lineCount = Integer.parseInt(scanner.nextLine());
         String code = IntStream.range(0, lineCount).mapToObj(i -> scanner.nextLine()).collect(Collectors.joining("\n"));
 
+        watcher.start();
         List<SnippetEvent> events = shell.eval(code);
+        watcher.stop();
+
         List<String> result = new ArrayList<>();
         for(SnippetEvent event : events) {
             if (event.causeSnippet() == null) {
                 //  We have a snippet creation event
-                String status = switch (event.status()) {
+                String status = watcher.stopped() ? "ABORTED" : switch (event.status()) {
                     case VALID, RECOVERABLE_DEFINED, RECOVERABLE_NOT_DEFINED, REJECTED -> event.status().name();
                     default -> throw new RuntimeException("Invalid status");
                 };
@@ -79,13 +93,23 @@ public class JShellWrapper {
         for(String line : result) {
             System.out.println(line);
         }
-        System.out.flush();
     }
 
-    private static void snippets(JShell shell) {
+    /**
+     * Input format : none<br>
+     * Output format :<br>
+     * <code>
+     * Snippet 1<br>
+     * empty line<br>
+     * Snippet 2<br>
+     * empty line<br>
+     * etc<br>
+     * empty line<br>
+     * </code>
+     */
+    private void snippets(JShell shell) {
         shell.snippets().map(Snippet::source).map(JShellWrapper::sanitize).forEach(System.out::println);
         System.out.println();
-        System.out.flush();
     }
 
     private static String sanitize(String s) {
