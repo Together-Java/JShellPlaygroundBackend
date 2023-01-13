@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class JShellSessionService {
     private Config config;
-    private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(6);
+    private ScheduledExecutorService scheduler;
     private final Map<String, JShellService> jshellSessions = new HashMap<>();
     private void initScheduler() {
         scheduler = Executors.newScheduledThreadPool(config.schedulerThreadCount());
