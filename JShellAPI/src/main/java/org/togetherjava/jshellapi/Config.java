@@ -6,10 +6,14 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record Config(
         long regularSessionTimeoutSeconds,
         long oneTimeSessionTimeoutSeconds,
-        long evalTimeoutSeconds) {
+        long evalTimeoutSeconds,
+        int schedulerThreadCount,
+        long schedulerSessionKillScanRate) {
     public Config {
         if(regularSessionTimeoutSeconds <= 0) throw new RuntimeException("Invalid value " + regularSessionTimeoutSeconds);
         if(oneTimeSessionTimeoutSeconds <= 0) throw new RuntimeException("Invalid value " + oneTimeSessionTimeoutSeconds);
         if(evalTimeoutSeconds <= 0) throw new RuntimeException("Invalid value " + evalTimeoutSeconds);
+        if(schedulerThreadCount <= 0) throw new RuntimeException("Invalid value " + schedulerThreadCount);
+        if(schedulerSessionKillScanRate <= 0) throw new RuntimeException("Invalid value " + schedulerSessionKillScanRate);
     }
 }

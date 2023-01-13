@@ -13,11 +13,11 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class JShellSessionService {
     private Config config;
-    private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(6);
+    private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(6);
     private final Map<String, JShellService> jshellSessions = new HashMap<>();
-
-    public JShellSessionService() {
-        executor.scheduleAtFixedRate(() -> {
+    private void initScheduler() {
+        scheduler = Executors.newScheduledThreadPool(config.schedulerThreadCount());
+        scheduler.scheduleAtFixedRate(() -> {
             List<String> toDie = jshellSessions.keySet()
                     .stream()
                     .filter(id -> jshellSessions.get(id).shouldDie())
@@ -29,7 +29,7 @@ public class JShellSessionService {
                     ex.printStackTrace();
                 }
             }
-        }, 1, 1, TimeUnit.MINUTES);
+        }, config.schedulerSessionKillScanRate(), config.schedulerSessionKillScanRate(), TimeUnit.SECONDS);
     }
 
     public boolean hasSession(String id) {
@@ -51,11 +51,12 @@ public class JShellSessionService {
     public void deleteSession(String id) throws DockerException {
         JShellService service = jshellSessions.remove(id);
         service.stop();
-        executor.schedule(service::close, 500, TimeUnit.MILLISECONDS);
+        scheduler.schedule(service::close, 500, TimeUnit.MILLISECONDS);
     }
 
     @Autowired
     public void setConfig(Config config) {
         this.config = config;
+        initScheduler();
     }
 }
