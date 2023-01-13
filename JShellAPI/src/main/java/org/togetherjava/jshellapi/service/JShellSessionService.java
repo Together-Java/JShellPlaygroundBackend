@@ -38,20 +38,27 @@ public class JShellSessionService {
 
     public JShellService sessionById(String id) throws DockerException {
         if(!jshellSessions.containsKey(id)) {
-            jshellSessions.put(id, new JShellService(id, config.regularSessionTimeoutSeconds(), true, config.evalTimeoutSeconds()));
+            return createSession(id, config.regularSessionTimeoutSeconds(), true, config.evalTimeoutSeconds());
         }
         return jshellSessions.get(id);
     }
     public JShellService oneTimeSession() throws DockerException {
-        JShellService service = new JShellService(UUID.randomUUID().toString(), config.oneTimeSessionTimeoutSeconds(), false, config.evalTimeoutSeconds());
-        jshellSessions.put(service.id(), service);
-        return service;
+        return createSession(UUID.randomUUID().toString(), config.oneTimeSessionTimeoutSeconds(), false, config.evalTimeoutSeconds());
     }
 
     public void deleteSession(String id) throws DockerException {
         JShellService service = jshellSessions.remove(id);
         service.stop();
         scheduler.schedule(service::close, 500, TimeUnit.MILLISECONDS);
+    }
+
+    private synchronized JShellService createSession(String id, long sessionTimeout, boolean renewable, long evalTimeout) throws DockerException {
+        if(jshellSessions.containsKey(id)) {    //Just in case race condition happens just before createSession
+            return jshellSessions.get(id);
+        }
+        JShellService service = new JShellService(id, sessionTimeout, renewable, evalTimeout);
+        jshellSessions.put(id, service);
+        return service;
     }
 
     @Autowired

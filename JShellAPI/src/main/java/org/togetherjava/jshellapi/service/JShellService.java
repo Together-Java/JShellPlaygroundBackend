@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class JShellService implements Closeable {
     private final String id;
@@ -23,6 +24,7 @@ public class JShellService implements Closeable {
     private Instant lastTimeoutUpdate;
     private final long timeout;
     private final boolean renewable;
+    private boolean doingOperation;
 
     public JShellService(String id, long timeout, boolean renewable, long evalTimeout) throws DockerException {
         this.id = id;
@@ -51,8 +53,14 @@ public class JShellService implements Closeable {
         } catch (IOException e) {
             throw new DockerException(e);
         }
+        this.doingOperation = false;
     }
-    public JShellResult eval(String code) throws DockerException {
+    public Optional<JShellResult> eval(String code) throws DockerException {
+        synchronized (this) {
+            if(!tryStartOperation())  {
+                return Optional.empty();
+            }
+        }
         updateLastTimeout();
         if(!code.endsWith("\n")) code += '\n';
         try {
@@ -76,14 +84,21 @@ public class JShellService implements Closeable {
             while(!(error = reader.readLine()).isEmpty()) {
                 errors.add(desanitize(error));
             }
-            return new JShellResult(status, type, id, source, result, stdoutOverflow, stdout, errors);
+            return Optional.of(new JShellResult(status, type, id, source, result, stdoutOverflow, stdout, errors));
         } catch (IOException | NumberFormatException ex) {
             close();
             throw new DockerException(ex);
+        } finally {
+            stopOperation();
         }
     }
 
-    public List<String> snippets() throws DockerException {
+    public Optional<List<String>> snippets() throws DockerException {
+        synchronized (this) {
+            if(!tryStartOperation())  {
+                return Optional.empty();
+            }
+        }
         updateLastTimeout();
         try {
             writer.write("snippets");
@@ -94,10 +109,12 @@ public class JShellService implements Closeable {
             while(!(snippet = reader.readLine()).isEmpty()) {
                 snippets.add(desanitize(snippet));
             }
-            return snippets;
+            return Optional.of(snippets);
         } catch (IOException ex) {
             close();
             throw new DockerException(ex);
+        } finally {
+            stopOperation();
         }
     }
 
@@ -147,6 +164,15 @@ public class JShellService implements Closeable {
         if(renewable) {
             lastTimeoutUpdate = Instant.now();
         }
+    }
+
+    private synchronized boolean tryStartOperation() {
+        if(doingOperation) return false;
+        doingOperation = true;
+        return true;
+    }
+    private void stopOperation() {
+        doingOperation = false;
     }
 
     private static String desanitize(String text) {
