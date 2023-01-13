@@ -12,6 +12,7 @@ import java.util.stream.IntStream;
 
 /**
  * Enter eval to evaluate code or snippets to see snippets, anything else to stop.
+ * How to use : first enter the command, for example eval or snippets, then any needed argument. Then "OK" should immediately be sent back, then after some time, the rest of the data.
  */
 public class JShellWrapper {
 
@@ -22,6 +23,8 @@ public class JShellWrapper {
         try (JShell shell = JShell.builder().out(new PrintStream(out)).build()) {
             while(true) {
                 String command = scanner.nextLine();
+                System.out.println("OK");
+                System.out.flush();
                 switch (command) {
                     case "eval" -> eval(scanner, config, shell, out);
                     case "snippets" -> snippets(shell);

@@ -71,6 +71,8 @@ public class JShellService implements Closeable {
             writer.write(code);
             writer.flush();
 
+            checkContainerOK();
+
             SnippetStatus status = Utils.nameOrElseThrow(SnippetStatus.class, reader.readLine(), name -> new DockerException(name + " isn't an enum constant"));
             SnippetType type = Utils.nameOrElseThrow(SnippetType.class, reader.readLine(), name -> new DockerException(name + " isn't an enum constant"));
             int id = Integer.parseInt(reader.readLine());
@@ -104,6 +106,9 @@ public class JShellService implements Closeable {
             writer.write("snippets");
             writer.newLine();
             writer.flush();
+
+            checkContainerOK();
+
             List<String> snippets = new ArrayList<>();
             String snippet;
             while(!(snippet = reader.readLine()).isEmpty()) {
@@ -163,6 +168,28 @@ public class JShellService implements Closeable {
     private void updateLastTimeout() {
         if(renewable) {
             lastTimeoutUpdate = Instant.now();
+        }
+    }
+
+    private void checkContainerOK() throws DockerException {
+        try {
+            String OK = reader.readLine();
+            if(OK == null) {
+                try {
+                    close();
+                } finally {
+                    throw new DockerException("Container of session " + id + " is dead");
+                }
+            }
+            if(!OK.equals("OK")) {
+                try {
+                    close();
+                } finally {
+                    throw new DockerException("Container of session " + id + " returned invalid info : " + OK);
+                }
+            }
+        } catch (IOException ex) {
+            throw new DockerException(ex);
         }
     }
 
