@@ -76,7 +76,7 @@ public class JShellWrapper {
         for(SnippetEvent event : events) {
             if (event.causeSnippet() == null) {
                 //  We have a snippet creation event
-                String status = watcher.stopped() ? "ABORTED" : switch (event.status()) {
+                String status = watcher.isTimeout() ? "ABORTED" : switch (event.status()) {
                     case VALID, RECOVERABLE_DEFINED, RECOVERABLE_NOT_DEFINED, REJECTED -> event.status().name();
                     default -> throw new RuntimeException("Invalid status");
                 };
