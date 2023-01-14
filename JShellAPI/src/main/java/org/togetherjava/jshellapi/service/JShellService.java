@@ -10,6 +10,8 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +36,9 @@ public class JShellService implements Closeable {
         this.renewable = renewable;
         this.lastTimeoutUpdate = Instant.now();
         try {
+            Path errorLogs = Path.of("logs", "container", containerName() + ".log");
+            Files.createDirectories(errorLogs.getParent());
+            Files.createFile(errorLogs);
             process = new ProcessBuilder(
                     "docker",
                     "run",
@@ -49,6 +54,7 @@ public class JShellService implements Closeable {
                     "jshellwrapper",
                     "java", "-DevalTimeoutSeconds=%d".formatted(evalTimeout), "-jar", "JShellWrapper.jar")
                     .directory(new File(".."))
+                    .redirectError(errorLogs.toFile())
                     .start();
             writer = process.outputWriter();
             reader = process.inputReader();
@@ -66,7 +72,7 @@ public class JShellService implements Closeable {
         updateLastTimeout();
         if(!code.endsWith("\n")) code += '\n';
         try {
-            writer.write("eval");
+            writer.write("eval f");
             writer.newLine();
             writer.write(String.valueOf(code.lines().count()));
             writer.newLine();
