@@ -64,7 +64,7 @@ public class JShellService implements Closeable {
         updateLastTimeout();
         if(!code.endsWith("\n")) code += '\n';
         try {
-            writer.write("eval");
+            writer.write("eval f");
             writer.newLine();
             writer.write(String.valueOf(code.lines().count()));
             writer.newLine();
@@ -129,7 +129,7 @@ public class JShellService implements Closeable {
 
     public void stop() throws DockerException {
         try {
-            writer.write("stop");
+            writer.write("exit");
             writer.newLine();
             writer.flush();
         } catch (IOException e) {
