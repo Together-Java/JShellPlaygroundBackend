@@ -72,7 +72,7 @@ public class JShellService implements Closeable {
         updateLastTimeout();
         if(!code.endsWith("\n")) code += '\n';
         try {
-            writer.write("eval f");
+            writer.write("eval");
             writer.newLine();
             writer.write(String.valueOf(code.lines().count()));
             writer.newLine();
