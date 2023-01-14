@@ -37,8 +37,10 @@ public class JShellService implements Closeable {
         this.lastTimeoutUpdate = Instant.now();
         try {
             Path errorLogs = Path.of("logs", "container", containerName() + ".log");
-            Files.createDirectories(errorLogs.getParent());
-            Files.createFile(errorLogs);
+            if(!Files.isRegularFile(errorLogs)) {
+                Files.createDirectories(errorLogs.getParent());
+                Files.createFile(errorLogs);
+            }
             process = new ProcessBuilder(
                     "docker",
                     "run",
