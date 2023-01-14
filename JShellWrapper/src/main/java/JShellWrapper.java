@@ -3,10 +3,7 @@ import jdk.jshell.Snippet;
 import jdk.jshell.SnippetEvent;
 
 import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Scanner;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -23,12 +20,11 @@ public class JShellWrapper {
         try (JShell shell = JShell.builder().out(new PrintStream(out)).build()) {
             while(true) {
                 String command = scanner.nextLine();
-                System.out.println("OK");
-                System.out.flush();
                 switch (command) {
                     case "eval" -> eval(scanner, config, shell, out);
                     case "snippets" -> snippets(shell);
                     case "exit" -> {
+                        ok();
                         return;
                     }
                     default -> {
@@ -38,6 +34,11 @@ public class JShellWrapper {
                 System.out.flush();
             }
         }
+    }
+
+    private void ok() {
+        System.out.println("OK");
+        System.out.flush();
     }
 
     /**
@@ -66,7 +67,7 @@ public class JShellWrapper {
         TimeoutWatcher watcher = new TimeoutWatcher(config.evalTimeoutSeconds(), shell::stop);
         int lineCount = Integer.parseInt(scanner.nextLine());
         String code = IntStream.range(0, lineCount).mapToObj(i -> scanner.nextLine()).collect(Collectors.joining("\n"));
-
+        ok();
         watcher.start();
         List<SnippetEvent> events = shell.eval(code);
         watcher.stop();
@@ -114,6 +115,7 @@ public class JShellWrapper {
      * </code>
      */
     private void snippets(JShell shell) {
+        ok();
         shell.snippets().map(Snippet::source).map(JShellWrapper::sanitize).forEach(System.out::println);
         System.out.println();
     }
