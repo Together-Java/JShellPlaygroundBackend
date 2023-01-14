@@ -52,7 +52,7 @@ public class JShellService implements Closeable {
                     "--pids-limit=2000",
                     "--memory=500M",
                     "--read-only",
-                    "--name", "\"" + containerName() + "\"",
+                    "--name", containerName(),
                     "jshellwrapper",
                     "java", "-DevalTimeoutSeconds=%d".formatted(evalTimeout), "-jar", "JShellWrapper.jar")
                     .directory(new File(".."))
