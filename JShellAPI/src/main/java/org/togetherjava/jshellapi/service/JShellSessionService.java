@@ -44,7 +44,7 @@ public class JShellSessionService {
     }
 
     public JShellService sessionById(String id) throws DockerException {
-        if(!jshellSessions.containsKey(id)) {
+        if(!hasSession(id)) {
             return createSession(id, config.regularSessionTimeoutSeconds(), true, config.evalTimeoutSeconds());
         }
         return jshellSessions.get(id);
@@ -60,7 +60,7 @@ public class JShellSessionService {
     }
 
     private synchronized JShellService createSession(String id, long sessionTimeout, boolean renewable, long evalTimeout) throws DockerException {
-        if(jshellSessions.containsKey(id)) {    //Just in case race condition happens just before createSession
+        if(hasSession(id)) {    //Just in case race condition happens just before createSession
             return jshellSessions.get(id);
         }
         JShellService service = new JShellService(this, id, sessionTimeout, renewable, evalTimeout);
