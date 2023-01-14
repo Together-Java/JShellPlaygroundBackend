@@ -45,7 +45,7 @@ public class JShellService implements Closeable {
                     "--pids-limit=2000",
                     "--memory=500M",
                     "--read-only",
-                    "--name", "\"user%s\"".formatted(id),
+                    "--name", "\"" + containerName() + "\"",
                     "jshellwrapper",
                     "java", "-DevalTimeoutSeconds=%d".formatted(evalTimeout), "-jar", "JShellWrapper.jar")
                     .directory(new File(".."))
@@ -66,7 +66,7 @@ public class JShellService implements Closeable {
         updateLastTimeout();
         if(!code.endsWith("\n")) code += '\n';
         try {
-            writer.write("eval f");
+            writer.write("eval");
             writer.newLine();
             writer.write(String.valueOf(code.lines().count()));
             writer.newLine();
@@ -125,6 +125,10 @@ public class JShellService implements Closeable {
         }
     }
 
+    public String containerName() {
+        return "session_" + id;
+    }
+
     public boolean shouldDie() {
         return lastTimeoutUpdate.plusSeconds(timeout).isBefore(Instant.now());
     }
@@ -152,7 +156,7 @@ public class JShellService implements Closeable {
             } finally {
                 reader.close();
             }
-            new ProcessBuilder("docker", "kill", "user" + id)
+            new ProcessBuilder("docker", "kill", containerName())
                     .directory(new File(".."))
                     .start()
                     .waitFor();
