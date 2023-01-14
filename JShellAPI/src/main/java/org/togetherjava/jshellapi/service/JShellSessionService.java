@@ -31,6 +31,13 @@ public class JShellSessionService {
             }
         }, config.schedulerSessionKillScanRate(), config.schedulerSessionKillScanRate(), TimeUnit.SECONDS);
     }
+    void notifyDeath(String id) {
+        JShellService shellService = jshellSessions.get(id);
+        if(!shellService.isClosed()) {
+            throw new RuntimeException("JShell Service isn't dead when it should for id " + id);
+        }
+        jshellSessions.remove(id);
+    }
 
     public boolean hasSession(String id) {
         return jshellSessions.containsKey(id);
@@ -56,7 +63,7 @@ public class JShellSessionService {
         if(jshellSessions.containsKey(id)) {    //Just in case race condition happens just before createSession
             return jshellSessions.get(id);
         }
-        JShellService service = new JShellService(id, sessionTimeout, renewable, evalTimeout);
+        JShellService service = new JShellService(this, id, sessionTimeout, renewable, evalTimeout);
         jshellSessions.put(id, service);
         return service;
     }

@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Optional;
 
 public class JShellService implements Closeable {
+    private final JShellSessionService sessionService;
     private final String id;
     private Process process;
     private final BufferedWriter writer;
@@ -26,7 +27,8 @@ public class JShellService implements Closeable {
     private final boolean renewable;
     private boolean doingOperation;
 
-    public JShellService(String id, long timeout, boolean renewable, long evalTimeout) throws DockerException {
+    public JShellService(JShellSessionService sessionService, String id, long timeout, boolean renewable, long evalTimeout) throws DockerException {
+        this.sessionService = sessionService;
         this.id = id;
         this.timeout = timeout;
         this.renewable = renewable;
@@ -158,6 +160,7 @@ public class JShellService implements Closeable {
             throw new RuntimeException(ex);
         }
         process = null;
+        sessionService.notifyDeath(id);
     }
 
     @Override
