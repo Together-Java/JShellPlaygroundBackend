@@ -8,6 +8,8 @@ public record Config(
         long oneTimeSessionTimeoutSeconds,
         long evalTimeoutSeconds,
         long maxAliveSessions,
+        int dockerMaxRamMegaBytes,
+        double dockerCPUsUsage,
         int schedulerThreadCount,
         long schedulerSessionKillScanRate) {
     public Config {
@@ -15,6 +17,8 @@ public record Config(
         if(oneTimeSessionTimeoutSeconds <= 0) throw new RuntimeException("Invalid value " + oneTimeSessionTimeoutSeconds);
         if(evalTimeoutSeconds <= 0) throw new RuntimeException("Invalid value " + evalTimeoutSeconds);
         if(maxAliveSessions <= 0) throw new RuntimeException("Invalid value " + maxAliveSessions);
+        if(dockerMaxRamMegaBytes <= 0) throw new RuntimeException("Invalid value " + dockerMaxRamMegaBytes);
+        if(dockerCPUsUsage <= 0) throw new RuntimeException("Invalid value " + dockerCPUsUsage);
         if(schedulerThreadCount <= 0) throw new RuntimeException("Invalid value " + schedulerThreadCount);
         if(schedulerSessionKillScanRate <= 0) throw new RuntimeException("Invalid value " + schedulerSessionKillScanRate);
     }

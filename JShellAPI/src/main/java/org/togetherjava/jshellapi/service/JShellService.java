@@ -29,7 +29,7 @@ public class JShellService implements Closeable {
     private final boolean renewable;
     private boolean doingOperation;
 
-    public JShellService(JShellSessionService sessionService, String id, long timeout, boolean renewable, long evalTimeout) throws DockerException {
+    public JShellService(JShellSessionService sessionService, String id, long timeout, boolean renewable, long evalTimeout, int maxMemory, double cpus) throws DockerException {
         this.sessionService = sessionService;
         this.id = id;
         this.timeout = timeout;
@@ -52,6 +52,8 @@ public class JShellService implements Closeable {
                     "--pids-limit=2000",
                     "--memory=500M",
                     "--read-only",
+                    "--memory=" + maxMemory + "m",
+                    "--cpus=" + cpus,
                     "--name", containerName(),
                     "jshellwrapper",
                     "java", "-DevalTimeoutSeconds=%d".formatted(evalTimeout), "-jar", "JShellWrapper.jar")

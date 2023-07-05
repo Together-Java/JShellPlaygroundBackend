@@ -68,7 +68,7 @@ public class JShellSessionService {
         if(jshellSessions.size() >= config.maxAliveSessions()) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Too many sessions, try again later :(.");
         }
-        JShellService service = new JShellService(this, id, sessionTimeout, renewable, evalTimeout);
+        JShellService service = new JShellService(this, id, sessionTimeout, renewable, evalTimeout, config.dockerMaxRamMegaBytes(), config.dockerCPUsUsage());
         jshellSessions.put(id, service);
         return service;
     }
