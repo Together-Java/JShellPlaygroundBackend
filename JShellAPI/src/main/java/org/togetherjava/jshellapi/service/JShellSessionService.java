@@ -1,7 +1,9 @@
 package org.togetherjava.jshellapi.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 import org.togetherjava.jshellapi.Config;
 import org.togetherjava.jshellapi.exceptions.DockerException;
 
@@ -64,7 +66,7 @@ public class JShellSessionService {
             return jshellSessions.get(id);
         }
         if(jshellSessions.size() >= config.maxAliveSessions()) {
-            throw new DockerException("Too many sessions.");
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Too many sessions, try again later :(.");
         }
         JShellService service = new JShellService(this, id, sessionTimeout, renewable, evalTimeout);
         jshellSessions.put(id, service);
