@@ -23,7 +23,9 @@ public class StringOutputStream extends OutputStream {
     }
 
     public String readAll() {
-        return new String(isOverflow() ? bytes : Arrays.copyOf(bytes, index));
+        String s = new String(isOverflow() ? bytes : Arrays.copyOf(bytes, index));
+        index = 0;
+        return s;
     }
 
     public boolean isOverflow() {
