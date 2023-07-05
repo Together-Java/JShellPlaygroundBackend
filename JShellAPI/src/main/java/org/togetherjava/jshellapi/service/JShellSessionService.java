@@ -63,6 +63,9 @@ public class JShellSessionService {
         if(hasSession(id)) {    //Just in case race condition happens just before createSession
             return jshellSessions.get(id);
         }
+        if(jshellSessions.size() >= config.maxAliveSessions()) {
+            throw new DockerException("Too many sessions.");
+        }
         JShellService service = new JShellService(this, id, sessionTimeout, renewable, evalTimeout);
         jshellSessions.put(id, service);
         return service;
