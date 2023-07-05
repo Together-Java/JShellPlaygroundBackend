@@ -1,6 +1,7 @@
 package org.togetherjava.jshellapi.service;
 
 import org.apache.tomcat.util.http.fileupload.util.Closeable;
+import org.togetherjava.jshellapi.dto.JShellExceptionResult;
 import org.togetherjava.jshellapi.dto.JShellResult;
 import org.togetherjava.jshellapi.dto.SnippetStatus;
 import org.togetherjava.jshellapi.dto.SnippetType;
@@ -91,6 +92,12 @@ public class JShellService implements Closeable {
             String source = desanitize(reader.readLine());
             String result = reader.readLine();
             if(result.equals("NONE")) result = null;
+            String rawException = reader.readLine();
+            JShellExceptionResult exception = null;
+            if(!rawException.isEmpty()) {
+                String[] split = rawException.split(":");
+                exception = new JShellExceptionResult(split[0], split[1]);
+            }
             boolean stdoutOverflow = Boolean.parseBoolean(reader.readLine());
             String stdout = desanitize(reader.readLine());
             List<String> errors = new ArrayList<>();
@@ -98,7 +105,7 @@ public class JShellService implements Closeable {
             while(!(error = reader.readLine()).isEmpty()) {
                 errors.add(desanitize(error));
             }
-            return Optional.of(new JShellResult(status, type, id, source, result, stdoutOverflow, stdout, errors));
+            return Optional.of(new JShellResult(status, type, id, source, result, exception, stdoutOverflow, stdout, errors));
         } catch (IOException | NumberFormatException ex) {
             close();
             throw new DockerException(ex);

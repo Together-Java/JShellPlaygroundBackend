@@ -1,6 +1,4 @@
-import jdk.jshell.JShell;
-import jdk.jshell.Snippet;
-import jdk.jshell.SnippetEvent;
+import jdk.jshell.*;
 
 import java.io.PrintStream;
 import java.util.*;
@@ -55,6 +53,7 @@ public class JShellWrapper {
      * snippet id<br>
      * source<br>
      * result or NONE<br>
+     * nothing or ExceptionClass:Exception message<br>
      * is stdout overflow<br>
      * stdout<br>
      * error 1<br>
@@ -89,6 +88,13 @@ public class JShellWrapper {
                 result.add(event.snippet().id());
                 result.add(sanitize(event.snippet().source()));
                 result.add(event.value() != null ? event.value() : "NONE");
+                if(event.exception() == null) {
+                    result.add("");
+                } else if(event.exception() instanceof EvalException evalException) {
+                    result.add(sanitize(evalException.getExceptionClassName() + ":" + evalException.getMessage()));
+                } else {
+                    result.add(sanitize(event.exception().getClass().getName() + ":" + event.exception().getMessage()));
+                }
                 result.add(String.valueOf(out.isOverflow()));
                 result.add(sanitize(out.readAll()));
                 if(event.status() == Snippet.Status.REJECTED) {
