@@ -20,7 +20,6 @@ public class JShellController {
     @PostMapping("/eval/{id}")
     public JShellResult eval(@PathVariable String id, @RequestBody String code) throws DockerException {
         validateId(id);
-        if(code == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Code is null");
         return service.session(id).eval(code).orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "An operation is already running"));
     }
     @PostMapping("/eval")
