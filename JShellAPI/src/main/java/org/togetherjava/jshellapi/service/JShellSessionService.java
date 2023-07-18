@@ -18,7 +18,7 @@ public class JShellSessionService {
     private ScheduledExecutorService scheduler;
     private final Map<String, JShellService> jshellSessions = new HashMap<>();
     private void initScheduler() {
-        scheduler = Executors.newScheduledThreadPool(config.schedulerThreadCount());
+        scheduler = Executors.newSingleThreadScheduledExecutor();
         scheduler.scheduleAtFixedRate(() -> {
             List<String> toDie = jshellSessions.keySet()
                     .stream()
