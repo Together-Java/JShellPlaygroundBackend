@@ -31,7 +31,7 @@ public class JShellSessionService {
                     ex.printStackTrace();
                 }
             }
-        }, config.schedulerSessionKillScanRate(), config.schedulerSessionKillScanRate(), TimeUnit.SECONDS);
+        }, config.schedulerSessionKillScanRateSeconds(), config.schedulerSessionKillScanRateSeconds(), TimeUnit.SECONDS);
     }
     void notifyDeath(String id) {
         JShellService shellService = jshellSessions.get(id);
