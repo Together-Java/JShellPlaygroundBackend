@@ -45,11 +45,14 @@ public class JShellSessionService {
         return jshellSessions.containsKey(id);
     }
 
-    public JShellService sessionById(String id) throws DockerException {
+    public JShellService session(String id) throws DockerException {
         if(!hasSession(id)) {
             return createSession(id, config.regularSessionTimeoutSeconds(), true, config.evalTimeoutSeconds());
         }
         return jshellSessions.get(id);
+    }
+    public JShellService session() throws DockerException {
+        return createSession(UUID.randomUUID().toString(), config.regularSessionTimeoutSeconds(), false, config.evalTimeoutSeconds());
     }
     public JShellService oneTimeSession() throws DockerException {
         return createSession(UUID.randomUUID().toString(), config.oneTimeSessionTimeoutSeconds(), false, config.evalTimeoutSeconds());

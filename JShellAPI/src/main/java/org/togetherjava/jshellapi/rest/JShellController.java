@@ -21,19 +21,24 @@ public class JShellController {
     public JShellResult eval(@PathVariable String id, @RequestBody String code) throws DockerException {
         validateId(id);
         if(code == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Code is null");
-        return service.sessionById(id).eval(code).orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "An operation is already running"));
+        return service.session(id).eval(code).orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "An operation is already running"));
     }
     @PostMapping("/eval")
     public JShellResultWithId eval(@RequestBody String code) throws DockerException {
-        JShellService jShellService = service.oneTimeSession();
+        JShellService jShellService = service.session();
         return new JShellResultWithId(jShellService.id(), jShellService.eval(code).orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "An operation is already running")));
+    }
+    @PostMapping("/single-eval")
+    public JShellResult singleEval(@RequestBody String code) throws DockerException {
+        JShellService jShellService = service.oneTimeSession();
+        return jShellService.eval(code).orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "An operation is already running"));
     }
 
     @GetMapping("/snippets/{id}")
     public List<String> snippets(@PathVariable String id) throws DockerException {
         validateId(id);
         if(!service.hasSession(id)) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Id " + id + " not found");
-        return service.sessionById(id).snippets().orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "An operation is already running"));
+        return service.session(id).snippets().orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "An operation is already running"));
     }
 
     @DeleteMapping("/{id}")
