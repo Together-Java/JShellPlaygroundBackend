@@ -2,6 +2,7 @@ package org.togetherjava.jshellapi.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import org.togetherjava.jshellapi.Config;
@@ -15,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class JShellSessionService {
     private Config config;
+    private StartupScriptsService startupScriptsService;
     private ScheduledExecutorService scheduler;
     private final Map<String, JShellService> jshellSessions = new HashMap<>();
     private void initScheduler() {
@@ -45,17 +47,17 @@ public class JShellSessionService {
         return jshellSessions.containsKey(id);
     }
 
-    public JShellService session(String id) throws DockerException {
+    public JShellService session(String id, @Nullable StartupScriptId startupScriptId) throws DockerException {
         if(!hasSession(id)) {
-            return createSession(id, config.regularSessionTimeoutSeconds(), true, config.evalTimeoutSeconds());
+            return createSession(id, config.regularSessionTimeoutSeconds(), true, config.evalTimeoutSeconds(), startupScriptId);
         }
         return jshellSessions.get(id);
     }
-    public JShellService session() throws DockerException {
-        return createSession(UUID.randomUUID().toString(), config.regularSessionTimeoutSeconds(), false, config.evalTimeoutSeconds());
+    public JShellService session(@Nullable StartupScriptId startupScriptId) throws DockerException {
+        return createSession(UUID.randomUUID().toString(), config.regularSessionTimeoutSeconds(), false, config.evalTimeoutSeconds(), startupScriptId);
     }
-    public JShellService oneTimeSession() throws DockerException {
-        return createSession(UUID.randomUUID().toString(), config.oneTimeSessionTimeoutSeconds(), false, config.evalTimeoutSeconds());
+    public JShellService oneTimeSession(@Nullable StartupScriptId startupScriptId) throws DockerException {
+        return createSession(UUID.randomUUID().toString(), config.oneTimeSessionTimeoutSeconds(), false, config.evalTimeoutSeconds(), startupScriptId);
     }
 
     public void deleteSession(String id) throws DockerException {
@@ -64,14 +66,23 @@ public class JShellSessionService {
         scheduler.schedule(service::close, 500, TimeUnit.MILLISECONDS);
     }
 
-    private synchronized JShellService createSession(String id, long sessionTimeout, boolean renewable, long evalTimeout) throws DockerException {
+    private synchronized JShellService createSession(String id, long sessionTimeout, boolean renewable, long evalTimeout, @Nullable StartupScriptId startupScriptId) throws DockerException {
         if(hasSession(id)) {    //Just in case race condition happens just before createSession
             return jshellSessions.get(id);
         }
         if(jshellSessions.size() >= config.maxAliveSessions()) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Too many sessions, try again later :(.");
         }
-        JShellService service = new JShellService(this, id, sessionTimeout, renewable, evalTimeout, config.dockerMaxRamMegaBytes(), config.dockerCPUsUsage());
+        JShellService service = new JShellService(
+                this,
+                id,
+                sessionTimeout,
+                renewable,
+                evalTimeout,
+                config.dockerMaxRamMegaBytes(),
+                config.dockerCPUsUsage(),
+                startupScriptsService.getImports(startupScriptId),
+                startupScriptsService.getScript(startupScriptId));
         jshellSessions.put(id, service);
         return service;
     }
@@ -80,5 +91,10 @@ public class JShellSessionService {
     public void setConfig(Config config) {
         this.config = config;
         initScheduler();
+    }
+
+    @Autowired
+    public void setStartupScriptsService(StartupScriptsService startupScriptsService) {
+        this.startupScriptsService = startupScriptsService;
     }
 }

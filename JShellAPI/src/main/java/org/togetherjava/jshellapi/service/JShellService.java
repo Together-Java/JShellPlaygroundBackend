@@ -30,7 +30,7 @@ public class JShellService implements Closeable {
     private final boolean renewable;
     private boolean doingOperation;
 
-    public JShellService(JShellSessionService sessionService, String id, long timeout, boolean renewable, long evalTimeout, int maxMemory, double cpus) throws DockerException {
+    public JShellService(JShellSessionService sessionService, String id, long timeout, boolean renewable, long evalTimeout, int maxMemory, double cpus, String startupImports, String startupScript) throws DockerException {
         this.sessionService = sessionService;
         this.id = id;
         this.timeout = timeout;
@@ -63,6 +63,10 @@ public class JShellService implements Closeable {
                     .start();
             writer = process.outputWriter();
             reader = process.inputReader();
+            writer.write(sanitize(startupImports));
+            writer.newLine();
+            writer.write(sanitize(startupScript));
+            writer.newLine();
         } catch (IOException e) {
             throw new DockerException(e);
         }
@@ -224,6 +228,10 @@ public class JShellService implements Closeable {
     }
     private void stopOperation() {
         doingOperation = false;
+    }
+
+    private static String sanitize(String s) {
+        return s.replace("\\", "\\\\").replace("\n", "\\n");
     }
 
     private static String desanitize(String text) {

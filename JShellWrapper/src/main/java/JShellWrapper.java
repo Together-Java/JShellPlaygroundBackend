@@ -7,15 +7,19 @@ import java.util.stream.IntStream;
 
 /**
  * Enter eval to evaluate code, snippets to see snippets, exit to stop.
- * How to use : first enter the command, for example eval or snippets, then any needed argument. Then "OK" should immediately be sent back, then after some time, the rest of the data.
+ * How to use : at startup, two lines need to be sent, imports and startup script, each in one line, first enter the command, for example eval or snippets, then any needed argument. Then "OK" should immediately be sent back, then after some time, the rest of the data.
  */
 public class JShellWrapper {
 
     public void run() {
-        Scanner scanner = new Scanner(System.in);
         Config config = Config.load();
+        Scanner scanner = new Scanner(System.in);
+        String imports = desanitize(scanner.nextLine());
+        String startup = desanitize(scanner.nextLine());
         StringOutputStream out = new StringOutputStream(1024);
         try (JShell shell = JShell.builder().out(new PrintStream(out)).build()) {
+            shell.eval(imports);
+            shell.eval(startup);
             while(true) {
                 String command = scanner.nextLine();
                 switch (command) {
@@ -128,6 +132,9 @@ public class JShellWrapper {
 
     private static String sanitize(String s) {
         return s.replace("\\", "\\\\").replace("\n", "\\n");
+    }
+    private static String desanitize(String text) {
+        return text.replace("\\n", "\n").replace("\\\\", "\\");
     }
 
 }
