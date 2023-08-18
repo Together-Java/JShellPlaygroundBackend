@@ -25,3 +25,6 @@
 - Open IntelliJ on the project JShellWrapper
 - Go in build → Build Artifacts... → Build
 - The jar should be located directly under JShellWrapper/out
+
+## How to use JShellApi ?
+See [GUIDE.MD](JShellAPI/GUIDE.MD)
