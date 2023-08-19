@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'master'
+      - 'feature/cicd-workflows'
 
 env:
   JAVA_VERSION: 19
