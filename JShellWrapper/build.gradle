@@ -2,7 +2,6 @@ import org.gradle.jvm.toolchain.JavaLanguageVersion
 
 plugins {
     id 'java'
-    id 'com.google.cloud.tools.jib' version '3.3.0'
 }
 
 group 'org.togetherjava'
@@ -16,13 +15,6 @@ java {
 
 repositories {
     mavenCentral()
-}
-
-jib {
-    from.image = 'eclipse-temurin:19-alpine'
-    to {
-        image = "test_todo"
-    }
 }
 
 dependencies {
