@@ -1,3 +1,5 @@
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+
 plugins {
     id 'java'
     id 'org.springframework.boot' version '3.0.1'
@@ -8,7 +10,12 @@ plugins {
 
 group 'org.togetherjava'
 version '1.0-SNAPSHOT'
-sourceCompatibility = '19'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(19)
+    }
+}
 
 repositories {
     mavenCentral()
