@@ -51,13 +51,12 @@ public class JShellService implements Closeable {
                     "--cap-drop=ALL",
                     "--network=none",
                     "--pids-limit=2000",
-                    "--memory=500M",
                     "--read-only",
                     "--memory=" + maxMemory + "m",
                     "--cpus=" + cpus,
                     "--name", containerName(),
-                    "jshellwrapper",
-                    "java", "-DevalTimeoutSeconds=%d".formatted(evalTimeout), "-jar", "JShellWrapper.jar")
+                    "-e", "\"evalTimeoutSeconds=%d\"".formatted(evalTimeout),
+                    "togetherjava.org:5001/togetherjava/jshellwrapper:master")
                     .directory(new File(".."))
                     .redirectError(errorLogs.toFile())
                     .start();
