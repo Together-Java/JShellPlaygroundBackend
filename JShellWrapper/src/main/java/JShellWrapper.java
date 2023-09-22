@@ -13,34 +13,33 @@ public class JShellWrapper {
 
     public void run() {
         Config config = Config.load();
-        Scanner scanner = new Scanner(System.in);
-        String imports = desanitize(scanner.nextLine());
-        String startup = desanitize(scanner.nextLine());
-        StringOutputStream out = new StringOutputStream(1024);
-        try (JShell shell = JShell.builder().out(new PrintStream(out)).build()) {
+        Scanner processIn = new Scanner(System.in);
+        PrintStream processOut = System.out;
+        String imports = desanitize(processIn.nextLine());
+        String startup = desanitize(processIn.nextLine());
+        StringOutputStream jshellOut = new StringOutputStream(1024);
+        try (JShell shell = JShell.builder().out(new PrintStream(jshellOut)).build()) {
             shell.eval(imports);
             shell.eval(startup);
             while(true) {
-                String command = scanner.nextLine();
+                String command = processIn.nextLine();
                 switch (command) {
-                    case "eval" -> eval(scanner, config, shell, out);
-                    case "snippets" -> snippets(shell);
+                    case "eval" -> eval(processIn, processOut, config, shell, jshellOut);
+                    case "snippets" -> snippets(processOut, shell);
                     case "exit" -> {
-                        ok();
+                        ok(processOut);
                         return;
                     }
-                    default -> {
-                        throw new RuntimeException("No such command \"" + command + "\"");
-                    }
+                    default -> throw new RuntimeException("No such command \"" + command + "\"");
                 }
-                System.out.flush();
+                processOut.flush();
             }
         }
     }
 
-    private void ok() {
-        System.out.println("OK");
-        System.out.flush();
+    private void ok(PrintStream processOut) {
+        processOut.println("OK");
+        processOut.flush();
     }
 
     /**
@@ -66,11 +65,11 @@ public class JShellWrapper {
      * empty line<br>
      * </code>
      */
-    private void eval(Scanner scanner, Config config, JShell shell, StringOutputStream out) {
+    private void eval(Scanner processIn, PrintStream processOut, Config config, JShell shell, StringOutputStream jshellOut) {
         TimeoutWatcher watcher = new TimeoutWatcher(config.evalTimeoutSeconds(), shell::stop);
-        int lineCount = Integer.parseInt(scanner.nextLine());
-        String code = IntStream.range(0, lineCount).mapToObj(i -> scanner.nextLine()).collect(Collectors.joining("\n"));
-        ok();
+        int lineCount = Integer.parseInt(processIn.nextLine());
+        String code = IntStream.range(0, lineCount).mapToObj(i -> processIn.nextLine()).collect(Collectors.joining("\n"));
+        ok(processOut);
         watcher.start();
         List<SnippetEvent> events = shell.eval(code);
         watcher.stop();
@@ -99,8 +98,8 @@ public class JShellWrapper {
                 } else {
                     result.add(sanitize(event.exception().getClass().getName() + ":" + event.exception().getMessage()));
                 }
-                result.add(String.valueOf(out.isOverflow()));
-                result.add(sanitize(out.readAll()));
+                result.add(String.valueOf(jshellOut.isOverflow()));
+                result.add(sanitize(jshellOut.readAll()));
                 if(event.status() == Snippet.Status.REJECTED) {
                     result.addAll(shell.diagnostics(event.snippet()).map(d -> sanitize(d.getMessage(Locale.ENGLISH))).toList());
                 }
@@ -108,7 +107,7 @@ public class JShellWrapper {
             }
         }
         for(String line : result) {
-            System.out.println(line);
+            processOut.println(line);
         }
     }
 
@@ -124,10 +123,10 @@ public class JShellWrapper {
      * empty line<br>
      * </code>
      */
-    private void snippets(JShell shell) {
-        ok();
-        shell.snippets().map(Snippet::source).map(JShellWrapper::sanitize).forEach(System.out::println);
-        System.out.println();
+    private void snippets(PrintStream processOut, JShell shell) {
+        ok(processOut);
+        shell.snippets().map(Snippet::source).map(JShellWrapper::sanitize).forEach(processOut::println);
+        processOut.println();
     }
 
     private static String sanitize(String s) {
