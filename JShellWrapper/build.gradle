@@ -1,7 +1,5 @@
-import org.gradle.jvm.toolchain.JavaLanguageVersion
-
 plugins {
-    id 'java'
+    id 'application' // Debugging only
     id 'com.google.cloud.tools.jib' version '3.3.2'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
@@ -9,10 +7,10 @@ plugins {
 group 'org.togetherjava'
 version '1.0-SNAPSHOT'
 
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(19)
-    }
+mainClassName = 'Main' // Debugging only
+
+run { // Debugging only
+    standardInput = System.in
 }
 
 var outputImage = 'togetherjava.org:5001/togetherjava/jshellwrapper:master' ?: 'latest'
