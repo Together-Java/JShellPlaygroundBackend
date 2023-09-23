@@ -1,12 +1,21 @@
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+
 plugins {
     id 'java'
     id 'org.springframework.boot' version '3.0.1'
     id 'io.spring.dependency-management' version '1.1.0'
+    id 'com.google.cloud.tools.jib' version '3.3.2'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
 group 'org.togetherjava'
 version '1.0-SNAPSHOT'
-sourceCompatibility = '19'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(19)
+    }
+}
 
 repositories {
     mavenCentral()
@@ -17,6 +26,29 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     annotationProcessor "org.springframework.boot:spring-boot-configuration-processor"
+}
+
+var outputImage = 'togetherjava.org:5001/togetherjava/jshellbackend:master' ?: 'latest'
+
+jib {
+    from.image = 'eclipse-temurin:19'
+    to {
+        image = outputImage
+        auth {
+            username = System.getenv('ORG_REGISTRY_USER') ?: ''
+            password = System.getenv('ORG_REGISTRY_PASSWORD') ?: ''
+        }
+    }
+    container {
+        mainClass = 'org.togetherjava.jshellapi.Main'
+        setCreationTime(java.time.Instant.now().toString())
+    }
+}
+
+shadowJar {
+    archiveBaseName.set('JShellPlaygroundBackend')
+    archiveClassifier.set('')
+    archiveVersion.set('')
 }
 
 tasks.named('test') {
