@@ -81,8 +81,7 @@ public class JShellSessionService {
                 evalTimeout,
                 config.dockerMaxRamMegaBytes(),
                 config.dockerCPUsUsage(),
-                startupScriptsService.getImports(startupScriptId),
-                startupScriptsService.getScript(startupScriptId));
+                startupScriptsService.get(startupScriptId));
         jshellSessions.put(id, service);
         return service;
     }

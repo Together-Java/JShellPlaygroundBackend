@@ -52,9 +52,7 @@ public class JShellController {
 
     @GetMapping("/startup_script/{id}")
     public String startupScript(@PathVariable StartupScriptId id) {
-        String imports = startupScriptsService.getImports(id);
-        String sep = imports.endsWith("\n") ? "\n" : "\n\n";
-        return imports + sep + startupScriptsService.getScript(id);
+        return startupScriptsService.get(id);
     }
 
     @Autowired
