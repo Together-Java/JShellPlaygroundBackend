@@ -2,12 +2,14 @@ import jdk.jshell.*;
 
 import java.io.PrintStream;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 /**
  * Enter eval to evaluate code, snippets to see snippets, exit to stop.
- * How to use : at startup, two lines need to be sent, imports and startup script, each in one line, first enter the command, for example eval or snippets, then any needed argument. Then "OK" should immediately be sent back, then after some time, the rest of the data.
+ * How to use : at startup, one line need to be sent, startup script, first enter the command, for example eval or snippets, then any needed argument. Then "OK" should immediately be sent back, then after some time, the rest of the data.
  */
 public class JShellWrapper {
 
@@ -15,12 +17,10 @@ public class JShellWrapper {
         Config config = Config.load();
         Scanner processIn = new Scanner(System.in);
         PrintStream processOut = System.out;
-        String imports = desanitize(processIn.nextLine());
         String startup = desanitize(processIn.nextLine());
         StringOutputStream jshellOut = new StringOutputStream(1024);
         try (JShell shell = JShell.builder().out(new PrintStream(jshellOut)).build()) {
-            shell.eval(imports);
-            shell.eval(startup);
+            verifyStartupEval(eval(shell, startup, new AtomicBoolean()));
             while(true) {
                 String command = processIn.nextLine();
                 switch (command) {
@@ -37,9 +37,41 @@ public class JShellWrapper {
         }
     }
 
+    private void verifyStartupEval(List<SnippetEvalResult> results) {
+        for (SnippetEvalResult result : results) {
+            if(!(result instanceof NormalEvalResult normalEvalResult)) {    // TODO Improve with java 21
+                throw new RuntimeException("Timeout exceeded.");
+            }
+            SnippetEvent event = normalEvalResult.event();
+            if(event.status() == Snippet.Status.REJECTED) {
+                throw new RuntimeException("Following startup script was REJECTED : " + sanitize(event.snippet().source()));
+            } else if(event.exception() != null) {
+                throw new RuntimeException("Following startup script resulted in an exception : " + sanitize(event.snippet().source()), event.exception());
+            }
+        }
+    }
+
     private void ok(PrintStream processOut) {
         processOut.println("OK");
         processOut.flush();
+    }
+
+    private List<SnippetEvalResult> eval(JShell shell, String code, AtomicBoolean hasStopped) {
+        List<SnippetEvalResult> events = new ArrayList<>();
+        do {
+            var completion = shell.sourceCodeAnalysis().analyzeCompletion(clean(code));
+            if(hasStopped.get()) {
+                events.add(new AfterInterruptionEvalResult(completion.source()));
+            } else {
+                for(SnippetEvent event : shell.eval(completion.source())) {
+                    if(event.causeSnippet() == null) {  // Only keep snippet creation events
+                        events.add(new NormalEvalResult(event));
+                    }
+                }
+            }
+            code = completion.remaining();
+        } while(!code.isEmpty());
+        return events;
     }
 
     /**
@@ -51,64 +83,109 @@ public class JShellWrapper {
      * </code>
      * Output format :<br>
      * <code>
+     * number of snippet results<br>
+     * next number of snippets, see writeEvalSnippetEvent and writeAfterTimeout, writeAfterTimeout is only called after the first ABORTED<br>
+     * is stdout overflow<br>
+     * stdout<br>
+     * </code>
+     */
+    private void eval(Scanner processIn, PrintStream processOut, Config config, JShell shell, StringOutputStream jshellOut) {
+        AtomicBoolean hasStopped = new AtomicBoolean();
+        TimeoutWatcher watcher = new TimeoutWatcher(config.evalTimeoutSeconds(), new JShellEvalStop(shell, hasStopped));
+        int lineCount = Integer.parseInt(processIn.nextLine());
+        String code = IntStream.range(0, lineCount).mapToObj(i -> processIn.nextLine()).collect(Collectors.joining("\n"));
+        ok(processOut);
+
+        watcher.start();
+        List<SnippetEvalResult> events = eval(shell, code, hasStopped);
+        watcher.stop();
+
+        List<String> outBuffer = writeEvalResult(watcher.isTimeout(), events, shell, jshellOut);
+        for(String line : outBuffer) {
+            processOut.println(line);
+        }
+    }
+
+    private List<String> writeEvalResult(boolean isTimeout, List<SnippetEvalResult> events, JShell shell, StringOutputStream jshellOut) {
+        List<String> outBuffer = new ArrayList<>();
+        outBuffer.add(String.valueOf(events.size()));
+        for (int i = 0; i < events.size(); i++) {
+            SnippetEvalResult result = events.get(i);
+            if(result instanceof NormalEvalResult normalEvalResult) {
+                SnippetEvent event = normalEvalResult.event();
+                boolean resultTimeout = (i < events.size() - 1 && events.get(i+1) instanceof AfterInterruptionEvalResult)
+                        || (i == events.size() - 1 && isTimeout);
+                writeEvalSnippetEvent(resultTimeout, outBuffer, event, shell);
+            } else if(result instanceof AfterInterruptionEvalResult afterInterruptionEvalResult) {
+                String source = afterInterruptionEvalResult.source();
+                writeAfterTimeout(outBuffer, source);
+            }
+            /*  TODO replace with switch in java 21
+            switch (result) {
+                case NormalEvalResult(SnippetEvent event) -> {
+                    boolean resultTimeout = (i < events.size() - 1 && events.get(i+1) instanceof AfterInterruptionEvalResult)
+                            || (i == events.size() - 1 && isTimeout);
+                    writeEvalSnippetEvent(resultTimeout, outBuffer, event, shell);
+                }
+                case AfterInterruptionEvalResult(String source) -> writeAfterTimeout(outBuffer, source);
+            }*/
+        }
+        outBuffer.add(String.valueOf(jshellOut.isOverflow()));
+        outBuffer.add(sanitize(jshellOut.readAll()));
+        return outBuffer;
+    }
+
+    /**
+     * Output format :<br>
+     * <code>
      * status within VALID, RECOVERABLE_DEFINED, RECOVERABLE_NOT_DEFINED, REJECTED, ABORTED<br>
      * ADDITION/MODIFICATION<br>
      * snippet id<br>
      * source<br>
-     * result or NONE<br>
-     * nothing or ExceptionClass:Exception message<br>
-     * is stdout overflow<br>
-     * stdout<br>
+     * NONE or result<br>
+     * NONE or ExceptionClass:Exception message<br>
+     * number of errors, only if REJECTED<br>
      * error 1<br>
      * error 2<br>
      * etc<br>
-     * empty line<br>
      * </code>
      */
-    private void eval(Scanner processIn, PrintStream processOut, Config config, JShell shell, StringOutputStream jshellOut) {
-        TimeoutWatcher watcher = new TimeoutWatcher(config.evalTimeoutSeconds(), shell::stop);
-        int lineCount = Integer.parseInt(processIn.nextLine());
-        String code = IntStream.range(0, lineCount).mapToObj(i -> processIn.nextLine()).collect(Collectors.joining("\n"));
-        ok(processOut);
-        watcher.start();
-        List<SnippetEvent> events = shell.eval(code);
-        watcher.stop();
+    private void writeEvalSnippetEvent(boolean aborted, List<String> outBuffer, SnippetEvent event, JShell shell) {
+        String status = aborted ? "ABORTED" : switch (event.status()) {
+            case VALID, RECOVERABLE_DEFINED, RECOVERABLE_NOT_DEFINED, REJECTED -> event.status().name();
+            default -> throw new RuntimeException("Invalid status");
+        };
+        outBuffer.add(status);
+        if (event.previousStatus() == Snippet.Status.NONEXISTENT) {
+            outBuffer.add("ADDITION");
+        } else {
+            outBuffer.add("MODIFICATION");
+        }
+        outBuffer.add(event.snippet().id());
+        outBuffer.add(sanitize(event.snippet().source()));
+        outBuffer.add(event.value() != null ? event.value() : "NONE");
+        if(event.exception() == null) {
+            outBuffer.add("");
+        } else if(event.exception() instanceof EvalException evalException) {
+            outBuffer.add(sanitize(evalException.getExceptionClassName() + ":" + evalException.getMessage()));
+        } else {
+            outBuffer.add(sanitize(event.exception().getClass().getName() + ":" + event.exception().getMessage()));
+        }
+        if(event.status() == Snippet.Status.REJECTED) {
+            List<String> errors = shell.diagnostics(event.snippet()).map(d -> sanitize(d.getMessage(Locale.ENGLISH))).toList();
+            outBuffer.add(String.valueOf(errors.size()));
+            outBuffer.addAll(errors);
+        }
+    }
 
-        List<String> result = new ArrayList<>();
-        for(SnippetEvent event : events) {
-            if (event.causeSnippet() == null) {
-                //  We have a snippet creation event
-                String status = watcher.isTimeout() ? "ABORTED" : switch (event.status()) {
-                    case VALID, RECOVERABLE_DEFINED, RECOVERABLE_NOT_DEFINED, REJECTED -> event.status().name();
-                    default -> throw new RuntimeException("Invalid status");
-                };
-                result.add(status);
-                if (event.previousStatus() == Snippet.Status.NONEXISTENT) {
-                    result.add("ADDITION");
-                } else {
-                    result.add("MODIFICATION");
-                }
-                result.add(event.snippet().id());
-                result.add(sanitize(event.snippet().source()));
-                result.add(event.value() != null ? event.value() : "NONE");
-                if(event.exception() == null) {
-                    result.add("");
-                } else if(event.exception() instanceof EvalException evalException) {
-                    result.add(sanitize(evalException.getExceptionClassName() + ":" + evalException.getMessage()));
-                } else {
-                    result.add(sanitize(event.exception().getClass().getName() + ":" + event.exception().getMessage()));
-                }
-                result.add(String.valueOf(jshellOut.isOverflow()));
-                result.add(sanitize(jshellOut.readAll()));
-                if(event.status() == Snippet.Status.REJECTED) {
-                    result.addAll(shell.diagnostics(event.snippet()).map(d -> sanitize(d.getMessage(Locale.ENGLISH))).toList());
-                }
-                result.add("");
-            }
-        }
-        for(String line : result) {
-            processOut.println(line);
-        }
+    /**
+     * Output format :<br>
+     * <code>
+     * source
+     * </code>
+     */
+    private void writeAfterTimeout(List<String> outBuffer, String source) {
+        outBuffer.add(sanitize(source));
     }
 
     /**
@@ -129,8 +206,11 @@ public class JShellWrapper {
         processOut.println();
     }
 
+    private static String clean(String s) {
+        return s.replace("\r", "");
+    }
     private static String sanitize(String s) {
-        return s.replace("\\", "\\\\").replace("\n", "\\n");
+        return clean(s).replace("\\", "\\\\").replace("\n", "\\n");
     }
     private static String desanitize(String text) {
         return text.replace("\\n", "\n").replace("\\\\", "\\");
