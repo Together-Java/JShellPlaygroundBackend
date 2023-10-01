@@ -8,6 +8,7 @@ group 'org.togetherjava'
 version '1.0-SNAPSHOT'
 
 mainClassName = 'Main' // Debugging only
+sourceCompatibility = 19
 
 run { // Debugging only
     standardInput = System.in
@@ -16,7 +17,7 @@ run { // Debugging only
 var outputImage = 'togetherjava.org:5001/togetherjava/jshellwrapper:master' ?: 'latest'
 
 jib {
-    from.image = 'eclipse-temurin:20'
+    from.image = 'eclipse-temurin:20-alpine'
     to {
         image = outputImage
         auth {
