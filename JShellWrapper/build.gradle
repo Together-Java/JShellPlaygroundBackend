@@ -12,6 +12,7 @@ sourceCompatibility = 19
 
 run { // Debugging only
     standardInput = System.in
+    systemProperty 'line.separator', '\n'
 }
 
 var outputImage = 'togetherjava.org:5001/togetherjava/jshellwrapper:master' ?: 'latest'
@@ -43,8 +44,13 @@ repositories {
 }
 
 dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.8.1'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.8.1'
 }
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+test {
+    systemProperty 'line.separator', '\n'
 }
