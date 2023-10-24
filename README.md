@@ -1,6 +1,6 @@
 # JShellPlaygroundBackend
 ## Prerequisites
-- Latest version of java (current 19)
+- Java 19
 - Docker
 
 ## How to use JShellWrapper alone
