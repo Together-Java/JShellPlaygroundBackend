@@ -175,7 +175,7 @@ public class JShellWrapper {
     /**
      * Output format :<br>
      * <code>
-     * status within VALID, RECOVERABLE_DEFINED, RECOVERABLE_NOT_DEFINED, REJECTED, TIMEOUT_ABORTED<br>
+     * status within VALID, RECOVERABLE_DEFINED, RECOVERABLE_NOT_DEFINED, REJECTED<br>
      * ADDITION/MODIFICATION<br>
      * snippet id<br>
      * source<br>
@@ -183,7 +183,7 @@ public class JShellWrapper {
      * </code>
      */
     private void writeEvalSnippetEvent(boolean isTimeout, List<String> outBuffer, SnippetEvent event, JShell shell) {
-        String status = isTimeout ? "TIMEOUT_ABORTED" : switch (event.status()) {
+        String status = switch (event.status()) {
             case VALID, RECOVERABLE_DEFINED, RECOVERABLE_NOT_DEFINED, REJECTED -> event.status().name();
             default -> throw new RuntimeException("Invalid status");
         };
