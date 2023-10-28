@@ -95,39 +95,41 @@ public class JShellService implements Closeable {
     private JShellResult readResult() throws IOException, NumberFormatException, DockerException {
         final int snippetsCount = Integer.parseInt(reader.readLine());
         List<JShellSnippetResult> snippetResults = new ArrayList<>();
-        boolean timeoutReached = false;
         for(int i = 0; i < snippetsCount; i++) {
-            if(!timeoutReached) {
-                SnippetStatus status = Utils.nameOrElseThrow(SnippetStatus.class, reader.readLine(), name -> new DockerException(name + " isn't an enum constant"));
-                if(status == SnippetStatus.ABORTED) {
-                    timeoutReached = true;
+            SnippetStatus status = Utils.nameOrElseThrow(SnippetStatus.class, reader.readLine(), name -> new DockerException(name + " isn't an enum constant"));
+            SnippetType type = Utils.nameOrElseThrow(SnippetType.class, reader.readLine(), name -> new DockerException(name + " isn't an enum constant"));
+            int snippetId = Integer.parseInt(reader.readLine());
+            String source = desanitize(reader.readLine());
+            String result = reader.readLine().transform(r -> r.equals("NONE") ? null : r);
+            snippetResults.add(new JShellSnippetResult(status, type, snippetId, source, result));
+        }
+        JShellEvalAbortion abortion = null;
+        String rawAbortionCause = reader.readLine();
+        if(!rawAbortionCause.isEmpty()) {
+            JShellEvalAbortionCause abortionCause = switch (rawAbortionCause) {
+                case "TIMEOUT" -> new JShellEvalAbortionCause.TimeoutAbortionCause();
+                case "UNCAUGHT_EXCEPTION" -> {
+                    String[] split = reader.readLine().split(":");
+                    yield new JShellEvalAbortionCause.UnhandledExceptionAbortionCause(split[0], split[1]);
                 }
-                SnippetType type = Utils.nameOrElseThrow(SnippetType.class, reader.readLine(), name -> new DockerException(name + " isn't an enum constant"));
-                int id = Integer.parseInt(reader.readLine());
-                String source = desanitize(reader.readLine());
-                String result = reader.readLine();
-                if (result.equals("NONE")) result = null;
-                String rawException = reader.readLine();
-                JShellExceptionResult exception = null;
-                if (!rawException.isEmpty()) {
-                    String[] split = rawException.split(":");
-                    exception = new JShellExceptionResult(split[0], split[1]);
-                }
-                List<String> errors = new ArrayList<>();
-                if(status == SnippetStatus.REJECTED) {
-                    int errorsCount = Integer.parseInt(reader.readLine());
-                    for(int j = 0; j < errorsCount; j++) {
+                case "COMPILE_TIME_ERROR" -> {
+                    int errorCount = Integer.parseInt(reader.readLine());
+                    List<String> errors = new ArrayList<>();
+                    for(int i = 0; i < errorCount; i++) {
                         errors.add(desanitize(reader.readLine()));
                     }
+                    yield new JShellEvalAbortionCause.CompileTimeErrorAbortionCause(errors);
                 }
-                snippetResults.add(new NormalJShellSnippetResult(status, type, id, source, result, exception, errors));
-            } else {
-                snippetResults.add(new AfterInterruptionJShellSnippetResult(reader.readLine()));
-            }
+                case "SYNTAX_ERROR" -> new JShellEvalAbortionCause.SyntaxTimeErrorAbortionCause();
+                default -> throw new DockerException("Abortion cause " + rawAbortionCause + " doesn't exist");
+            };
+            String causeSource = reader.readLine();
+            String remainingSource = reader.readLine();
+            abortion = new JShellEvalAbortion(causeSource, remainingSource, abortionCause);
         }
         boolean stdoutOverflow = Boolean.parseBoolean(reader.readLine());
         String stdout = desanitize(reader.readLine());
-        return new JShellResult(snippetResults, stdoutOverflow, stdout);
+        return new JShellResult(snippetResults, abortion, stdoutOverflow, stdout);
     }
 
     public Optional<List<String>> snippets() throws DockerException {
