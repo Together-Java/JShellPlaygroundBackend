@@ -46,7 +46,7 @@ public class JShellWrapper {
             throw new RuntimeException("Following startup script resulted in an exception : " + sanitize(abortion.sourceCause()), event.exception());
         } else if(abortion.cause() instanceof JShellEvalAbortionCause.CompileTimeErrorAbortionCause) {
             throw new RuntimeException("Following startup script was REJECTED : " + sanitize(abortion.sourceCause()));
-        } else if(abortion.cause() instanceof JShellEvalAbortionCause.SyntaxTimeErrorAbortionCause) {
+        } else if(abortion.cause() instanceof JShellEvalAbortionCause.SyntaxErrorAbortionCause) {
             throw new RuntimeException("Following startup script has a syntax error : " + sanitize(abortion.sourceCause()));
         } else throw new AssertionError();
     }
@@ -62,7 +62,7 @@ public class JShellWrapper {
         do {
             var completion = shell.sourceCodeAnalysis().analyzeCompletion(clean(code));
             if(completion.completeness() == SourceCodeAnalysis.Completeness.DEFINITELY_INCOMPLETE) {
-                abortion = new JShellEvalAbortion(code, completion.remaining(), new JShellEvalAbortionCause.SyntaxTimeErrorAbortionCause());
+                abortion = new JShellEvalAbortion(code, completion.remaining(), new JShellEvalAbortionCause.SyntaxErrorAbortionCause());
                 break;
             }
             List<SnippetEvent> evalEvents = shell.eval(completion.source());
@@ -158,7 +158,7 @@ public class JShellWrapper {
                 outBuffer.add("COMPILE_TIME_ERROR");
                 outBuffer.add(String.valueOf(c.errors().size()));
                 outBuffer.addAll(c.errors());
-            } else if(abortion.cause() instanceof JShellEvalAbortionCause.SyntaxTimeErrorAbortionCause c) {
+            } else if(abortion.cause() instanceof JShellEvalAbortionCause.SyntaxErrorAbortionCause c) {
                 outBuffer.add("SYNTAX_ERROR");
             } else throw new AssertionError();
             outBuffer.add(sanitize(abortion.sourceCause()));

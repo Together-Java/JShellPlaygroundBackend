@@ -11,6 +11,6 @@ public sealed interface JShellEvalAbortionCause {
     record CompileTimeErrorAbortionCause(List<String> errors) implements JShellEvalAbortionCause {
     }
 
-    record SyntaxTimeErrorAbortionCause() implements JShellEvalAbortionCause {
+    record SyntaxErrorAbortionCause() implements JShellEvalAbortionCause {
     }
 }

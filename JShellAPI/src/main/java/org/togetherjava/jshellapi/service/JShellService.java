@@ -120,7 +120,7 @@ public class JShellService implements Closeable {
                     }
                     yield new JShellEvalAbortionCause.CompileTimeErrorAbortionCause(errors);
                 }
-                case "SYNTAX_ERROR" -> new JShellEvalAbortionCause.SyntaxTimeErrorAbortionCause();
+                case "SYNTAX_ERROR" -> new JShellEvalAbortionCause.SyntaxErrorAbortionCause();
                 default -> throw new DockerException("Abortion cause " + rawAbortionCause + " doesn't exist");
             };
             String causeSource = reader.readLine();

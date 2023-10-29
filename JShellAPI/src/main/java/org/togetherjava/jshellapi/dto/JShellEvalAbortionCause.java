@@ -21,6 +21,6 @@ public sealed interface JShellEvalAbortionCause {
     }
 
     @JsonTypeName("SYNTAX_ERROR")
-    record SyntaxTimeErrorAbortionCause() implements JShellEvalAbortionCause {
+    record SyntaxErrorAbortionCause() implements JShellEvalAbortionCause {
     }
 }
