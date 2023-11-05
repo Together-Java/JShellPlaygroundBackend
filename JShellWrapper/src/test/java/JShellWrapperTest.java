@@ -148,10 +148,15 @@ class JShellWrapperTest {
             while(true);""",
                 """
                 OK
-                0
+                1
+                VALID
+                ADDITION
+                1
+                while(true);
+                NONE
                 TIMEOUT
                 while(true);
-                
+                                
                 false
                 """);
     }

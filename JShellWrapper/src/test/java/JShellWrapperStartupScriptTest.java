@@ -26,6 +26,7 @@ class JShellWrapperStartupScriptTest {
                 3
                 println(List.of("a", "b", "c"))
                 
+                
                 false
                 [a, b, c]\\n
                 OK
