@@ -99,7 +99,7 @@ public class JShellService implements Closeable {
             SnippetStatus status = Utils.nameOrElseThrow(SnippetStatus.class, reader.readLine(), name -> new DockerException(name + " isn't an enum constant"));
             SnippetType type = Utils.nameOrElseThrow(SnippetType.class, reader.readLine(), name -> new DockerException(name + " isn't an enum constant"));
             int snippetId = Integer.parseInt(reader.readLine());
-            String source = desanitize(reader.readLine());
+            String source = cleanCode(reader.readLine());
             String result = reader.readLine().transform(r -> r.equals("NONE") ? null : r);
             snippetResults.add(new JShellSnippetResult(status, type, snippetId, source, result));
         }
@@ -123,8 +123,8 @@ public class JShellService implements Closeable {
                 case "SYNTAX_ERROR" -> new JShellEvalAbortionCause.SyntaxErrorAbortionCause();
                 default -> throw new DockerException("Abortion cause " + rawAbortionCause + " doesn't exist");
             };
-            String causeSource = reader.readLine();
-            String remainingSource = reader.readLine();
+            String causeSource = cleanCode(reader.readLine());
+            String remainingSource = cleanCode(reader.readLine());
             abortion = new JShellEvalAbortion(causeSource, remainingSource, abortionCause);
         }
         boolean stdoutOverflow = Boolean.parseBoolean(reader.readLine());
@@ -149,7 +149,7 @@ public class JShellService implements Closeable {
             List<String> snippets = new ArrayList<>();
             String snippet;
             while(!(snippet = reader.readLine()).isEmpty()) {
-                snippets.add(desanitize(snippet));
+                snippets.add(cleanCode(snippet));
             }
             return Optional.of(snippets);
         } catch (IOException ex) {
@@ -250,6 +250,9 @@ public class JShellService implements Closeable {
 
     private static String desanitize(String text) {
         return text.replace("\\n", "\n").replace("\\\\", "\\");
+    }
+    private static String cleanCode(String code) {
+        return code.translateEscapes();
     }
 
 }
