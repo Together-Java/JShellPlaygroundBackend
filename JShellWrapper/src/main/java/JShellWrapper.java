@@ -132,19 +132,18 @@ public class JShellWrapper {
         EvalResult result = eval(shell, code, hasStopped);
         watcher.stop();
 
-        List<String> outBuffer = writeEvalResult(watcher.isTimeout(), result, shell, jshellOut);
+        List<String> outBuffer = writeEvalResult(result, jshellOut);
         for(String line : outBuffer) {
             processOut.println(line);
         }
     }
 
-    private List<String> writeEvalResult(boolean isTimeout, EvalResult result, JShell shell, StringOutputStream jshellOut) {
+    private List<String> writeEvalResult(EvalResult result, StringOutputStream jshellOut) {
         List<SnippetEvent> events = result.events();
         List<String> outBuffer = new ArrayList<>();
         outBuffer.add(String.valueOf(events.size()));
-        for (int i = 0; i < events.size(); i++) {
-            SnippetEvent event = events.get(i);
-            writeEvalSnippetEvent(i == events.size() - 1 && isTimeout, outBuffer, event, shell);
+        for (SnippetEvent event : events) {
+            writeEvalSnippetEvent(outBuffer, event);
         }
         JShellEvalAbortion abortion = result.abortion();
         if(abortion != null) {
@@ -182,7 +181,7 @@ public class JShellWrapper {
      * NONE or result<br>
      * </code>
      */
-    private void writeEvalSnippetEvent(boolean isTimeout, List<String> outBuffer, SnippetEvent event, JShell shell) {
+    private void writeEvalSnippetEvent(List<String> outBuffer, SnippetEvent event) {
         String status = switch (event.status()) {
             case VALID, RECOVERABLE_DEFINED, RECOVERABLE_NOT_DEFINED, REJECTED -> event.status().name();
             default -> throw new RuntimeException("Invalid status");
