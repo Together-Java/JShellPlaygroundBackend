@@ -242,4 +242,24 @@ class JShellWrapperTest {
                 false
                 """);
     }
+    @Test
+    void testMultilinesAndHardcodedNewLineInString() {
+        evalTest("""
+            eval
+            3
+            {
+                System.out.println("\\n");
+            }""",
+                """
+                OK
+                1
+                VALID
+                ADDITION
+                1
+                {\\n    System.out.println("\\\\n");\\n}
+                
+                
+                false
+                \\n\\n""");
+    }
 }
