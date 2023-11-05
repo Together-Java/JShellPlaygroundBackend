@@ -66,13 +66,13 @@ public class JShellWrapper {
                 break;
             }
             List<SnippetEvent> evalEvents = shell.eval(completion.source());
-            if(hasStopped.get()) {
-                abortion = new JShellEvalAbortion(completion.source(), completion.remaining(), new JShellEvalAbortionCause.TimeoutAbortionCause());
-                break;
-            }
             JShellEvalAbortionCause abortionCause = handleEvents(shell, evalEvents, resultEvents);
             if(abortionCause != null) {
                 abortion = new JShellEvalAbortion(completion.source(), completion.remaining(), abortionCause);
+                break;
+            }
+            if(hasStopped.get()) {
+                abortion = new JShellEvalAbortion(completion.source(), completion.remaining(), new JShellEvalAbortionCause.TimeoutAbortionCause());
                 break;
             }
             code = completion.remaining();
