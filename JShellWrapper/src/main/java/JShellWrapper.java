@@ -59,9 +59,9 @@ public class JShellWrapper {
     private EvalResult eval(JShell shell, String code, AtomicBoolean hasStopped) {
         List<SnippetEvent> resultEvents = new ArrayList<>();
         JShellEvalAbortion abortion = null;
-        do {
+        while(!code.isEmpty()) {
             var completion = shell.sourceCodeAnalysis().analyzeCompletion(clean(code));
-            if(completion.completeness() == SourceCodeAnalysis.Completeness.DEFINITELY_INCOMPLETE) {
+            if(!completion.completeness().isComplete()) {
                 abortion = new JShellEvalAbortion(code, completion.remaining(), new JShellEvalAbortionCause.SyntaxErrorAbortionCause());
                 break;
             }
@@ -76,7 +76,7 @@ public class JShellWrapper {
                 break;
             }
             code = completion.remaining();
-        } while(!code.isEmpty());
+        }
         return new EvalResult(resultEvents, abortion);
     }
     private JShellEvalAbortionCause handleEvents(JShell shell, List<SnippetEvent> evalEvents, List<SnippetEvent> resultEvents) {
