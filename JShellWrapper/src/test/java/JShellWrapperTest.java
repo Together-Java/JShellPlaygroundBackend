@@ -13,7 +13,7 @@ class JShellWrapperTest {
     PrintStream out;
     @BeforeAll
     static void setUp() {
-        config = new Config(5);
+        config = new Config(5, 1024);
         jshell = new JShellWrapper();
     }
     void evalTest(String input, String expectedOutput) {

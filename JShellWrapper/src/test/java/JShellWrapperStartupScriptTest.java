@@ -8,7 +8,7 @@ import java.io.PrintStream;
 class JShellWrapperStartupScriptTest {
     @Test
     void testDoubleSnippets() {
-        Config config = new Config(5);
+        Config config = new Config(5, 1024);
         StringInputStream inputStream = new StringInputStream("""
                 import java.util.*; void println(Object o) { System.out.println(o); }
                 eval

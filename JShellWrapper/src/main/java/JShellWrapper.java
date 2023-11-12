@@ -16,7 +16,7 @@ public class JShellWrapper {
     public void run(Config config, InputStream in, PrintStream processOut) {
         Scanner processIn = new Scanner(in);
         String startup = desanitize(processIn.nextLine());
-        StringOutputStream jshellOut = new StringOutputStream(1024);
+        StringOutputStream jshellOut = new StringOutputStream(config.sysOutCharLimit());
         try (JShell shell = JShell.builder().out(new PrintStream(jshellOut)).build()) {
             verifyStartupEval(eval(shell, startup, new AtomicBoolean()));
             while(true) {
