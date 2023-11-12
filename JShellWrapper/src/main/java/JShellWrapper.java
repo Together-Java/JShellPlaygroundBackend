@@ -62,7 +62,7 @@ public class JShellWrapper {
         while(!code.isEmpty()) {
             var completion = shell.sourceCodeAnalysis().analyzeCompletion(clean(code));
             if(!completion.completeness().isComplete()) {
-                abortion = new JShellEvalAbortion(code, completion.remaining(), new JShellEvalAbortionCause.SyntaxErrorAbortionCause());
+                abortion = new JShellEvalAbortion(code, "", new JShellEvalAbortionCause.SyntaxErrorAbortionCause());
                 break;
             }
             List<SnippetEvent> evalEvents = shell.eval(completion.source());
