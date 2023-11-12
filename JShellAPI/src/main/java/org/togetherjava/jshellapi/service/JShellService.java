@@ -27,7 +27,7 @@ public class JShellService implements Closeable {
     private final boolean renewable;
     private boolean doingOperation;
 
-    public JShellService(JShellSessionService sessionService, String id, long timeout, boolean renewable, long evalTimeout, int maxMemory, double cpus, String startupScript) throws DockerException {
+    public JShellService(JShellSessionService sessionService, String id, long timeout, boolean renewable, long evalTimeout, int sysOutCharLimit, int maxMemory, double cpus, String startupScript) throws DockerException {
         this.sessionService = sessionService;
         this.id = id;
         this.timeout = timeout;
@@ -53,6 +53,7 @@ public class JShellService implements Closeable {
                     "--cpus=" + cpus,
                     "--name", containerName(),
                     "-e", "\"evalTimeoutSeconds=%d\"".formatted(evalTimeout),
+                    "-e", "\"sysOutCharLimit=%d\"".formatted(sysOutCharLimit),
                     "togetherjava.org:5001/togetherjava/jshellwrapper:master")
                     .directory(new File(".."))
                     .redirectError(errorLogs.toFile())

@@ -49,15 +49,15 @@ public class JShellSessionService {
 
     public JShellService session(String id, @Nullable StartupScriptId startupScriptId) throws DockerException {
         if(!hasSession(id)) {
-            return createSession(id, config.regularSessionTimeoutSeconds(), true, config.evalTimeoutSeconds(), startupScriptId);
+            return createSession(id, config.regularSessionTimeoutSeconds(), true, config.evalTimeoutSeconds(), config.sysOutCharLimit(), startupScriptId);
         }
         return jshellSessions.get(id);
     }
     public JShellService session(@Nullable StartupScriptId startupScriptId) throws DockerException {
-        return createSession(UUID.randomUUID().toString(), config.regularSessionTimeoutSeconds(), false, config.evalTimeoutSeconds(), startupScriptId);
+        return createSession(UUID.randomUUID().toString(), config.regularSessionTimeoutSeconds(), false, config.evalTimeoutSeconds(), config.sysOutCharLimit(), startupScriptId);
     }
     public JShellService oneTimeSession(@Nullable StartupScriptId startupScriptId) throws DockerException {
-        return createSession(UUID.randomUUID().toString(), config.oneTimeSessionTimeoutSeconds(), false, config.evalTimeoutSeconds(), startupScriptId);
+        return createSession(UUID.randomUUID().toString(), config.oneTimeSessionTimeoutSeconds(), false, config.evalTimeoutSeconds(), config.sysOutCharLimit(), startupScriptId);
     }
 
     public void deleteSession(String id) throws DockerException {
@@ -66,7 +66,7 @@ public class JShellSessionService {
         scheduler.schedule(service::close, 500, TimeUnit.MILLISECONDS);
     }
 
-    private synchronized JShellService createSession(String id, long sessionTimeout, boolean renewable, long evalTimeout, @Nullable StartupScriptId startupScriptId) throws DockerException {
+    private synchronized JShellService createSession(String id, long sessionTimeout, boolean renewable, long evalTimeout, int sysOutCharLimit, @Nullable StartupScriptId startupScriptId) throws DockerException {
         if(hasSession(id)) {    //Just in case race condition happens just before createSession
             return jshellSessions.get(id);
         }
@@ -79,6 +79,7 @@ public class JShellSessionService {
                 sessionTimeout,
                 renewable,
                 evalTimeout,
+                sysOutCharLimit,
                 config.dockerMaxRamMegaBytes(),
                 config.dockerCPUsUsage(),
                 startupScriptsService.get(startupScriptId));
