@@ -13,6 +13,7 @@ sourceCompatibility = 19
 run { // Debugging only
     standardInput = System.in
     systemProperty 'line.separator', '\n'
+    systemProperty 'file.encoding', 'UTF-8'
 }
 
 var outputImage = 'togetherjava.org:5001/togetherjava/jshellwrapper:master' ?: 'latest'
@@ -53,4 +54,5 @@ tasks.named('test') {
 }
 test {
     systemProperty 'line.separator', '\n'
+    systemProperty 'file.encoding', 'UTF-8'
 }

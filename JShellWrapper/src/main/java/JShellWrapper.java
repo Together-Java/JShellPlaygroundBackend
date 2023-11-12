@@ -166,8 +166,9 @@ public class JShellWrapper {
             outBuffer.add("");
         }
 
-        outBuffer.add(String.valueOf(jshellOut.isOverflow()));
-        outBuffer.add(sanitize(jshellOut.readAll()));
+        StringOutputStream.Result out = jshellOut.readAll();
+        outBuffer.add(String.valueOf(out.isOverflow()));
+        outBuffer.add(sanitize(out.content()));
         return outBuffer;
     }
 
