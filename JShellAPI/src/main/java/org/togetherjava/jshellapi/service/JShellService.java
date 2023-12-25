@@ -1,10 +1,7 @@
 package org.togetherjava.jshellapi.service;
 
 import org.apache.tomcat.util.http.fileupload.util.Closeable;
-import org.togetherjava.jshellapi.dto.JShellExceptionResult;
-import org.togetherjava.jshellapi.dto.JShellResult;
-import org.togetherjava.jshellapi.dto.SnippetStatus;
-import org.togetherjava.jshellapi.dto.SnippetType;
+import org.togetherjava.jshellapi.dto.*;
 import org.togetherjava.jshellapi.exceptions.DockerException;
 
 import java.io.BufferedReader;
@@ -30,7 +27,7 @@ public class JShellService implements Closeable {
     private final boolean renewable;
     private boolean doingOperation;
 
-    public JShellService(JShellSessionService sessionService, String id, long timeout, boolean renewable, long evalTimeout, int maxMemory, double cpus, String startupImports, String startupScript) throws DockerException {
+    public JShellService(JShellSessionService sessionService, String id, long timeout, boolean renewable, long evalTimeout, int sysOutCharLimit, int maxMemory, double cpus, String startupScript) throws DockerException {
         this.sessionService = sessionService;
         this.id = id;
         this.timeout = timeout;
@@ -56,14 +53,13 @@ public class JShellService implements Closeable {
                     "--cpus=" + cpus,
                     "--name", containerName(),
                     "-e", "\"evalTimeoutSeconds=%d\"".formatted(evalTimeout),
+                    "-e", "\"sysOutCharLimit=%d\"".formatted(sysOutCharLimit),
                     "togetherjava.org:5001/togetherjava/jshellwrapper:master")
                     .directory(new File(".."))
                     .redirectError(errorLogs.toFile())
                     .start();
             writer = process.outputWriter();
             reader = process.inputReader();
-            writer.write(sanitize(startupImports));
-            writer.newLine();
             writer.write(sanitize(startupScript));
             writer.newLine();
         } catch (IOException e) {
@@ -89,32 +85,52 @@ public class JShellService implements Closeable {
 
             checkContainerOK();
 
-            SnippetStatus status = Utils.nameOrElseThrow(SnippetStatus.class, reader.readLine(), name -> new DockerException(name + " isn't an enum constant"));
-            SnippetType type = Utils.nameOrElseThrow(SnippetType.class, reader.readLine(), name -> new DockerException(name + " isn't an enum constant"));
-            int id = Integer.parseInt(reader.readLine());
-            String source = desanitize(reader.readLine());
-            String result = reader.readLine();
-            if(result.equals("NONE")) result = null;
-            String rawException = reader.readLine();
-            JShellExceptionResult exception = null;
-            if(!rawException.isEmpty()) {
-                String[] split = rawException.split(":");
-                exception = new JShellExceptionResult(split[0], split[1]);
-            }
-            boolean stdoutOverflow = Boolean.parseBoolean(reader.readLine());
-            String stdout = desanitize(reader.readLine());
-            List<String> errors = new ArrayList<>();
-            String error;
-            while(!(error = reader.readLine()).isEmpty()) {
-                errors.add(desanitize(error));
-            }
-            return Optional.of(new JShellResult(status, type, id, source, result, exception, stdoutOverflow, stdout, errors));
+            return Optional.of(readResult());
         } catch (IOException | NumberFormatException ex) {
             close();
             throw new DockerException(ex);
         } finally {
             stopOperation();
         }
+    }
+    private JShellResult readResult() throws IOException, NumberFormatException, DockerException {
+        final int snippetsCount = Integer.parseInt(reader.readLine());
+        List<JShellSnippetResult> snippetResults = new ArrayList<>();
+        for(int i = 0; i < snippetsCount; i++) {
+            SnippetStatus status = Utils.nameOrElseThrow(SnippetStatus.class, reader.readLine(), name -> new DockerException(name + " isn't an enum constant"));
+            SnippetType type = Utils.nameOrElseThrow(SnippetType.class, reader.readLine(), name -> new DockerException(name + " isn't an enum constant"));
+            int snippetId = Integer.parseInt(reader.readLine());
+            String source = cleanCode(reader.readLine());
+            String result = reader.readLine().transform(r -> r.equals("NONE") ? null : r);
+            snippetResults.add(new JShellSnippetResult(status, type, snippetId, source, result));
+        }
+        JShellEvalAbortion abortion = null;
+        String rawAbortionCause = reader.readLine();
+        if(!rawAbortionCause.isEmpty()) {
+            JShellEvalAbortionCause abortionCause = switch (rawAbortionCause) {
+                case "TIMEOUT" -> new JShellEvalAbortionCause.TimeoutAbortionCause();
+                case "UNCAUGHT_EXCEPTION" -> {
+                    String[] split = reader.readLine().split(":");
+                    yield new JShellEvalAbortionCause.UnhandledExceptionAbortionCause(split[0], split[1]);
+                }
+                case "COMPILE_TIME_ERROR" -> {
+                    int errorCount = Integer.parseInt(reader.readLine());
+                    List<String> errors = new ArrayList<>();
+                    for(int i = 0; i < errorCount; i++) {
+                        errors.add(desanitize(reader.readLine()));
+                    }
+                    yield new JShellEvalAbortionCause.CompileTimeErrorAbortionCause(errors);
+                }
+                case "SYNTAX_ERROR" -> new JShellEvalAbortionCause.SyntaxErrorAbortionCause();
+                default -> throw new DockerException("Abortion cause " + rawAbortionCause + " doesn't exist");
+            };
+            String causeSource = cleanCode(reader.readLine());
+            String remainingSource = cleanCode(reader.readLine());
+            abortion = new JShellEvalAbortion(causeSource, remainingSource, abortionCause);
+        }
+        boolean stdoutOverflow = Boolean.parseBoolean(reader.readLine());
+        String stdout = desanitize(reader.readLine());
+        return new JShellResult(snippetResults, abortion, stdoutOverflow, stdout);
     }
 
     public Optional<List<String>> snippets() throws DockerException {
@@ -134,7 +150,7 @@ public class JShellService implements Closeable {
             List<String> snippets = new ArrayList<>();
             String snippet;
             while(!(snippet = reader.readLine()).isEmpty()) {
-                snippets.add(desanitize(snippet));
+                snippets.add(cleanCode(snippet));
             }
             return Optional.of(snippets);
         } catch (IOException ex) {
@@ -235,6 +251,9 @@ public class JShellService implements Closeable {
 
     private static String desanitize(String text) {
         return text.replace("\\n", "\n").replace("\\\\", "\\");
+    }
+    private static String cleanCode(String code) {
+        return code.translateEscapes();
     }
 
 }
