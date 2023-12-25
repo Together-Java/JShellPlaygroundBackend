@@ -13,11 +13,16 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Service
 public class DockerService implements AutoCloseable {
+
+    private static final String WORKER_LABEL = "jshell-api-worker";
+    private static final UUID WORKER_UNIQUE_ID = UUID.randomUUID();
 
     private final DockerClient client;
 
@@ -30,6 +35,19 @@ public class DockerService implements AutoCloseable {
                 .connectionTimeout(Duration.ofSeconds(60))
                 .build();
         this.client = DockerClientImpl.getInstance(clientConfig, httpClient);
+
+        cleanupLeftovers();
+    }
+
+    private void cleanupLeftovers() {
+        for (Container container : client.listContainersCmd().withLabelFilter(Set.of(WORKER_LABEL)).exec()) {
+            String containerHumanName = container.getId() + " " + Arrays.toString(container.getNames());
+            System.out.println("Found worker container " + containerHumanName);
+            if (!container.getLabels().get(WORKER_LABEL).equals(WORKER_UNIQUE_ID.toString())) {
+                System.out.println("Killing container " + containerHumanName);
+                client.killContainerCmd(container.getId()).exec();
+            }
+        }
     }
 
     public String spawnContainer(
@@ -68,6 +86,7 @@ public class DockerService implements AutoCloseable {
                 .withAttachStderr(true)
                 .withAttachStdout(true)
                 .withEnv("evalTimeoutSeconds=" + evalTimeout.toSeconds(), "sysOutCharLimit=" + sysoutLimit)
+                .withLabels(Map.of(WORKER_LABEL, WORKER_UNIQUE_ID.toString()))
                 .withName(name)
                 .exec()
                 .getId();
