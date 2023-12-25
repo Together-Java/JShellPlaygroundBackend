@@ -7,6 +7,9 @@ import com.github.dockerjava.api.model.*;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientImpl;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
@@ -19,7 +22,8 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Service
-public class DockerService implements AutoCloseable {
+public class DockerService implements DisposableBean {
+    private static final Logger LOGGER = LoggerFactory.getLogger(DockerService.class);
 
     private static final String WORKER_LABEL = "jshell-api-worker";
     private static final UUID WORKER_UNIQUE_ID = UUID.randomUUID();
@@ -36,15 +40,15 @@ public class DockerService implements AutoCloseable {
                 .build();
         this.client = DockerClientImpl.getInstance(clientConfig, httpClient);
 
-        cleanupLeftovers();
+        cleanupLeftovers(WORKER_UNIQUE_ID);
     }
 
-    private void cleanupLeftovers() {
+    private void cleanupLeftovers(UUID currentId) {
         for (Container container : client.listContainersCmd().withLabelFilter(Set.of(WORKER_LABEL)).exec()) {
             String containerHumanName = container.getId() + " " + Arrays.toString(container.getNames());
-            System.out.println("Found worker container " + containerHumanName);
-            if (!container.getLabels().get(WORKER_LABEL).equals(WORKER_UNIQUE_ID.toString())) {
-                System.out.println("Killing container " + containerHumanName);
+            LOGGER.info("Found worker container '{}'", containerHumanName);
+            if (!container.getLabels().get(WORKER_LABEL).equals(currentId.toString())) {
+                LOGGER.info("Killing container '{}'", containerHumanName);
                 client.killContainerCmd(container.getId()).exec();
             }
         }
@@ -110,7 +114,11 @@ public class DockerService implements AutoCloseable {
                             if (object.getStreamType() == StreamType.STDOUT) {
                                 pipeOut.write(object.getPayload());
                             } else {
-                                System.err.println(":( " + payloadString);
+                                LOGGER.warn(
+                                        "Received STDERR from container {}: {}",
+                                        containerId,
+                                        payloadString
+                                );
                             }
                         } catch (IOException e) {
                             throw new UncheckedIOException(e);
@@ -128,12 +136,15 @@ public class DockerService implements AutoCloseable {
         }
     }
 
-    @Override
-    public void close() throws Exception {
-        client.close();
-    }
-
     public boolean isDead(String containerName) {
         return client.listContainersCmd().withNameFilter(Set.of(containerName)).exec().isEmpty();
     }
+
+    @Override
+    public void destroy() throws Exception {
+        LOGGER.info("destroy() called. Destroying all containers...");
+        cleanupLeftovers(UUID.randomUUID());
+        client.close();
+    }
+
 }
