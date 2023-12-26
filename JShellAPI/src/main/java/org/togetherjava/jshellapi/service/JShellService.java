@@ -65,6 +65,10 @@ public class JShellService implements Closeable {
                 return Optional.empty();
             }
         }
+        if (isClosed()) {
+            close();
+            return Optional.empty();
+        }
         updateLastTimeout();
         if(!code.endsWith("\n")) code += '\n';
         try {
