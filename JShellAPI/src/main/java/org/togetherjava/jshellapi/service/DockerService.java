@@ -10,7 +10,9 @@ import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.togetherjava.jshellapi.Config;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -24,19 +26,18 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class DockerService implements DisposableBean {
     private static final Logger LOGGER = LoggerFactory.getLogger(DockerService.class);
-
     private static final String WORKER_LABEL = "jshell-api-worker";
     private static final UUID WORKER_UNIQUE_ID = UUID.randomUUID();
 
     private final DockerClient client;
 
-    public DockerService() {
+    public DockerService(Config config) {
         DefaultDockerClientConfig clientConfig = DefaultDockerClientConfig.createDefaultConfigBuilder().build();
         ApacheDockerHttpClient httpClient = new ApacheDockerHttpClient.Builder()
                 .dockerHost(clientConfig.getDockerHost())
                 .sslConfig(clientConfig.getSSLConfig())
-                .responseTimeout(Duration.ofSeconds(60))
-                .connectionTimeout(Duration.ofSeconds(60))
+                .responseTimeout(Duration.ofSeconds(config.dockerResponseTimeout()))
+                .connectionTimeout(Duration.ofSeconds(config.dockerConnectionTimeout()))
                 .build();
         this.client = DockerClientImpl.getInstance(clientConfig, httpClient);
 
