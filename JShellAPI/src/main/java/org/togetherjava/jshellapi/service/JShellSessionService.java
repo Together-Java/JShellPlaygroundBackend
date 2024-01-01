@@ -18,7 +18,9 @@ public class JShellSessionService {
     private Config config;
     private StartupScriptsService startupScriptsService;
     private ScheduledExecutorService scheduler;
+    private DockerService dockerService;
     private final Map<String, JShellService> jshellSessions = new HashMap<>();
+
     private void initScheduler() {
         scheduler = Executors.newSingleThreadScheduledExecutor();
         scheduler.scheduleAtFixedRate(() -> {
@@ -74,6 +76,7 @@ public class JShellSessionService {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Too many sessions, try again later :(.");
         }
         JShellService service = new JShellService(
+                dockerService,
                 this,
                 id,
                 sessionTimeout,
@@ -96,5 +99,10 @@ public class JShellSessionService {
     @Autowired
     public void setStartupScriptsService(StartupScriptsService startupScriptsService) {
         this.startupScriptsService = startupScriptsService;
+    }
+
+    @Autowired
+    public void setDockerService(DockerService dockerService) {
+        this.dockerService = dockerService;
     }
 }

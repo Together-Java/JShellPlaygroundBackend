@@ -4,12 +4,10 @@ import org.apache.tomcat.util.http.fileupload.util.Closeable;
 import org.togetherjava.jshellapi.dto.*;
 import org.togetherjava.jshellapi.exceptions.DockerException;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,7 +16,6 @@ import java.util.Optional;
 public class JShellService implements Closeable {
     private final JShellSessionService sessionService;
     private final String id;
-    private Process process;
     private final BufferedWriter writer;
     private final BufferedReader reader;
 
@@ -26,8 +23,10 @@ public class JShellService implements Closeable {
     private final long timeout;
     private final boolean renewable;
     private boolean doingOperation;
+    private final DockerService dockerService;
 
-    public JShellService(JShellSessionService sessionService, String id, long timeout, boolean renewable, long evalTimeout, int sysOutCharLimit, int maxMemory, double cpus, String startupScript) throws DockerException {
+    public JShellService(DockerService dockerService, JShellSessionService sessionService, String id, long timeout, boolean renewable, long evalTimeout, int sysOutCharLimit, int maxMemory, double cpus, String startupScript) throws DockerException {
+        this.dockerService = dockerService;
         this.sessionService = sessionService;
         this.id = id;
         this.timeout = timeout;
@@ -39,30 +38,23 @@ public class JShellService implements Closeable {
                 Files.createDirectories(errorLogs.getParent());
                 Files.createFile(errorLogs);
             }
-            process = new ProcessBuilder(
-                    "docker",
-                    "run",
-                    "--rm",
-                    "-i",
-                    "--init",
-                    "--cap-drop=ALL",
-                    "--network=none",
-                    "--pids-limit=2000",
-                    "--read-only",
-                    "--memory=" + maxMemory + "m",
-                    "--cpus=" + cpus,
-                    "--name", containerName(),
-                    "-e", "\"evalTimeoutSeconds=%d\"".formatted(evalTimeout),
-                    "-e", "\"sysOutCharLimit=%d\"".formatted(sysOutCharLimit),
-                    "togetherjava.org:5001/togetherjava/jshellwrapper:master")
-                    .directory(new File(".."))
-                    .redirectError(errorLogs.toFile())
-                    .start();
-            writer = process.outputWriter();
-            reader = process.inputReader();
+            String containerId = dockerService.spawnContainer(
+                    maxMemory,
+                    (long) Math.ceil(cpus),
+                    containerName(),
+                    Duration.ofSeconds(evalTimeout),
+                    sysOutCharLimit
+            );
+            PipedInputStream containerInput = new PipedInputStream();
+            this.writer = new BufferedWriter(new OutputStreamWriter(new PipedOutputStream(containerInput)));
+            InputStream containerOutput = dockerService.startAndAttachToContainer(
+                    containerId,
+                    containerInput
+            );
+            reader = new BufferedReader(new InputStreamReader(containerOutput));
             writer.write(sanitize(startupScript));
             writer.newLine();
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
             throw new DockerException(e);
         }
         this.doingOperation = false;
@@ -72,6 +64,10 @@ public class JShellService implements Closeable {
             if(!tryStartOperation())  {
                 return Optional.empty();
             }
+        }
+        if (isClosed()) {
+            close();
+            return Optional.empty();
         }
         updateLastTimeout();
         if(!code.endsWith("\n")) code += '\n';
@@ -86,7 +82,7 @@ public class JShellService implements Closeable {
             checkContainerOK();
 
             return Optional.of(readResult());
-        } catch (IOException | NumberFormatException ex) {
+        } catch (DockerException | IOException | NumberFormatException ex) {
             close();
             throw new DockerException(ex);
         } finally {
@@ -185,27 +181,22 @@ public class JShellService implements Closeable {
 
     @Override
     public void close() {
-        process.destroyForcibly();
         try {
             try {
                 writer.close();
             } finally {
                 reader.close();
             }
-            new ProcessBuilder("docker", "kill", containerName())
-                    .directory(new File(".."))
-                    .start()
-                    .waitFor();
-        } catch(IOException | InterruptedException ex) {
+            dockerService.killContainerByName(containerName());
+        } catch(IOException ex) {
             throw new RuntimeException(ex);
         }
-        process = null;
         sessionService.notifyDeath(id);
     }
 
     @Override
     public boolean isClosed() {
-        return process == null;
+        return dockerService.isDead(containerName());
     }
 
     private void updateLastTimeout() {
