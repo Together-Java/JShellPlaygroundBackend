@@ -17,10 +17,7 @@ import org.togetherjava.jshellapi.Config;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -60,10 +57,11 @@ public class DockerService implements DisposableBean {
     ) throws InterruptedException {
         String imageName = "togetherjava.org:5001/togetherjava/jshellwrapper";
         boolean presentLocally = client.listImagesCmd()
-                .withImageNameFilter(imageName)
+                .withFilter("reference", List.of(imageName))
                 .exec()
                 .stream()
-                .anyMatch(it -> Arrays.asList(it.getRepoTags()).contains("master"));
+                .flatMap(it -> Arrays.stream(it.getRepoTags()))
+                .anyMatch(it -> it.endsWith(":master"));
 
         if (!presentLocally) {
             client.pullImageCmd(imageName)
