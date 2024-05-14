@@ -207,6 +207,13 @@ public class JShellService implements Closeable {
 
     private void checkContainerOK() throws DockerException {
         try {
+            if(dockerService.isDead(containerName())) {
+                try {
+                    close();
+                } finally {
+                    throw new DockerException("Container of session " + id + " is dead");
+                }
+            }
             String OK = reader.readLine();
             if(OK == null) {
                 try {
