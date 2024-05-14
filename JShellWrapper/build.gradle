@@ -19,7 +19,7 @@ run { // Debugging only
 var outputImage = 'togetherjava.org:5001/togetherjava/jshellwrapper:master' ?: 'latest'
 
 jib {
-    from.image = 'eclipse-temurin:20-alpine'
+    from.image = 'eclipse-temurin:22-alpine'
     to {
         image = outputImage
         auth {
