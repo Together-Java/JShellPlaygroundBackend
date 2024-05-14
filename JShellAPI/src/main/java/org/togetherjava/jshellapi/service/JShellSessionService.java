@@ -39,6 +39,7 @@ public class JShellSessionService {
     }
     void notifyDeath(String id) {
         JShellService shellService = jshellSessions.get(id);
+        if(shellService == null) return;
         if(!shellService.isClosed()) {
             throw new RuntimeException("JShell Service isn't dead when it should for id " + id);
         }

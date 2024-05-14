@@ -182,16 +182,17 @@ public class JShellService implements Closeable {
     @Override
     public void close() {
         try {
+            dockerService.killContainerByName(containerName());
             try {
                 writer.close();
             } finally {
                 reader.close();
             }
-            dockerService.killContainerByName(containerName());
         } catch(IOException ex) {
             throw new RuntimeException(ex);
+        } finally {
+            sessionService.notifyDeath(id);
         }
-        sessionService.notifyDeath(id);
     }
 
     @Override
