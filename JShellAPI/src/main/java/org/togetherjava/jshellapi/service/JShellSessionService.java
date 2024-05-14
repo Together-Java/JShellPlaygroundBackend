@@ -52,15 +52,15 @@ public class JShellSessionService {
 
     public JShellService session(String id, @Nullable StartupScriptId startupScriptId) throws DockerException {
         if(!hasSession(id)) {
-            return createSession(id, config.regularSessionTimeoutSeconds(), true, config.evalTimeoutSeconds(), config.sysOutCharLimit(), startupScriptId);
+            return createSession(id, config.regularSessionTimeoutSeconds(), true, config.evalTimeoutSeconds(), config.evalTimeoutValidationLeeway(), config.sysOutCharLimit(), startupScriptId);
         }
         return jshellSessions.get(id);
     }
     public JShellService session(@Nullable StartupScriptId startupScriptId) throws DockerException {
-        return createSession(UUID.randomUUID().toString(), config.regularSessionTimeoutSeconds(), false, config.evalTimeoutSeconds(), config.sysOutCharLimit(), startupScriptId);
+        return createSession(UUID.randomUUID().toString(), config.regularSessionTimeoutSeconds(), false, config.evalTimeoutSeconds(), config.evalTimeoutValidationLeeway(), config.sysOutCharLimit(), startupScriptId);
     }
     public JShellService oneTimeSession(@Nullable StartupScriptId startupScriptId) throws DockerException {
-        return createSession(UUID.randomUUID().toString(), config.oneTimeSessionTimeoutSeconds(), false, config.evalTimeoutSeconds(), config.sysOutCharLimit(), startupScriptId);
+        return createSession(UUID.randomUUID().toString(), config.oneTimeSessionTimeoutSeconds(), false, config.evalTimeoutSeconds(), config.evalTimeoutValidationLeeway(), config.sysOutCharLimit(), startupScriptId);
     }
 
     public void deleteSession(String id) throws DockerException {
@@ -69,7 +69,7 @@ public class JShellSessionService {
         scheduler.schedule(service::close, 500, TimeUnit.MILLISECONDS);
     }
 
-    private synchronized JShellService createSession(String id, long sessionTimeout, boolean renewable, long evalTimeout, int sysOutCharLimit, @Nullable StartupScriptId startupScriptId) throws DockerException {
+    private synchronized JShellService createSession(String id, long sessionTimeout, boolean renewable, long evalTimeout, long evalTimeoutValidationLeeway, int sysOutCharLimit, @Nullable StartupScriptId startupScriptId) throws DockerException {
         if(hasSession(id)) {    //Just in case race condition happens just before createSession
             return jshellSessions.get(id);
         }
@@ -83,12 +83,30 @@ public class JShellSessionService {
                 sessionTimeout,
                 renewable,
                 evalTimeout,
+                evalTimeoutValidationLeeway,
                 sysOutCharLimit,
                 config.dockerMaxRamMegaBytes(),
                 config.dockerCPUsUsage(),
                 startupScriptsService.get(startupScriptId));
         jshellSessions.put(id, service);
         return service;
+    }
+
+    /**
+     * Schedule the validation of the session timeout.
+     * In case the code runs for too long, checks if the wrapper correctly followed the eval timeout and canceled it,
+     * if it didn't, forcefully close the session.
+     * @param id the id of the session
+     * @param timeSeconds the time to schedule
+     */
+    public void scheduleEvalTimeoutValidation(String id, long timeSeconds) {
+        scheduler.schedule(() -> {
+            JShellService service = jshellSessions.get(id);
+            if(service == null) return;
+            if(service.isInvalidEvalTimeout()) {
+                service.close();
+            }
+        }, timeSeconds, TimeUnit.SECONDS);
     }
 
     @Autowired

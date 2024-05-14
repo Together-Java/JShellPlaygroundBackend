@@ -7,6 +7,7 @@ public record Config(
         long regularSessionTimeoutSeconds,
         long oneTimeSessionTimeoutSeconds,
         long evalTimeoutSeconds,
+        long evalTimeoutValidationLeeway,
         int sysOutCharLimit,
         long maxAliveSessions,
         int dockerMaxRamMegaBytes,
@@ -18,6 +19,7 @@ public record Config(
         if(regularSessionTimeoutSeconds <= 0) throw new RuntimeException("Invalid value " + regularSessionTimeoutSeconds);
         if(oneTimeSessionTimeoutSeconds <= 0) throw new RuntimeException("Invalid value " + oneTimeSessionTimeoutSeconds);
         if(evalTimeoutSeconds <= 0) throw new RuntimeException("Invalid value " + evalTimeoutSeconds);
+        if(evalTimeoutValidationLeeway <= 0) throw new RuntimeException("Invalid value " + evalTimeoutSeconds);
         if(sysOutCharLimit <= 0) throw new RuntimeException("Invalid value " + sysOutCharLimit);
         if(maxAliveSessions <= 0) throw new RuntimeException("Invalid value " + maxAliveSessions);
         if(dockerMaxRamMegaBytes <= 0) throw new RuntimeException("Invalid value " + dockerMaxRamMegaBytes);

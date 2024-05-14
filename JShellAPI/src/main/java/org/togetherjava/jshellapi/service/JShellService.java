@@ -22,15 +22,19 @@ public class JShellService implements Closeable {
     private Instant lastTimeoutUpdate;
     private final long timeout;
     private final boolean renewable;
+    private final long evalTimeoutValidationLeeway;
+    private final long evalTimeout;
     private boolean doingOperation;
     private final DockerService dockerService;
 
-    public JShellService(DockerService dockerService, JShellSessionService sessionService, String id, long timeout, boolean renewable, long evalTimeout, int sysOutCharLimit, int maxMemory, double cpus, String startupScript) throws DockerException {
+    public JShellService(DockerService dockerService, JShellSessionService sessionService, String id, long timeout, boolean renewable, long evalTimeout, long evalTimeoutValidationLeeway, int sysOutCharLimit, int maxMemory, double cpus, String startupScript) throws DockerException {
         this.dockerService = dockerService;
         this.sessionService = sessionService;
         this.id = id;
         this.timeout = timeout;
         this.renewable = renewable;
+        this.evalTimeout = evalTimeout;
+        this.evalTimeoutValidationLeeway = evalTimeoutValidationLeeway;
         this.lastTimeoutUpdate = Instant.now();
         try {
             Path errorLogs = Path.of("logs", "container", containerName() + ".log");
@@ -70,6 +74,7 @@ public class JShellService implements Closeable {
             return Optional.empty();
         }
         updateLastTimeout();
+        sessionService.scheduleEvalTimeoutValidation(id, evalTimeout + evalTimeoutValidationLeeway);
         if(!code.endsWith("\n")) code += '\n';
         try {
             writer.write("eval");
@@ -159,6 +164,10 @@ public class JShellService implements Closeable {
 
     public String containerName() {
         return "session_" + id;
+    }
+
+    public boolean isInvalidEvalTimeout() {
+        return doingOperation && lastTimeoutUpdate.plusSeconds(evalTimeout + evalTimeoutValidationLeeway).isBefore(Instant.now());
     }
 
     public boolean shouldDie() {
