@@ -1,12 +1,12 @@
 package org.togetherjava.jshellapi.service;
 
 import org.apache.tomcat.util.http.fileupload.util.Closeable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.togetherjava.jshellapi.dto.*;
 import org.togetherjava.jshellapi.exceptions.DockerException;
 
 import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Optional;
 
 public class JShellService implements Closeable {
+    private static final Logger LOGGER = LoggerFactory.getLogger(JShellService.class);
     private final JShellSessionService sessionService;
     private final String id;
     private final BufferedWriter writer;
@@ -37,11 +38,6 @@ public class JShellService implements Closeable {
         this.evalTimeoutValidationLeeway = evalTimeoutValidationLeeway;
         this.lastTimeoutUpdate = Instant.now();
         try {
-            Path errorLogs = Path.of("logs", "container", containerName() + ".log");
-            if(!Files.isRegularFile(errorLogs)) {
-                Files.createDirectories(errorLogs.getParent());
-                Files.createFile(errorLogs);
-            }
             String containerId = dockerService.spawnContainer(
                     maxMemory,
                     (long) Math.ceil(cpus),
@@ -198,7 +194,7 @@ public class JShellService implements Closeable {
                 reader.close();
             }
         } catch(IOException ex) {
-            throw new RuntimeException(ex);
+            LOGGER.error("Unexpected error while closing.", ex);
         } finally {
             sessionService.notifyDeath(id);
         }

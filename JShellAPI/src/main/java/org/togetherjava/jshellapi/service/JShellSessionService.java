@@ -1,5 +1,7 @@
 package org.togetherjava.jshellapi.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.lang.Nullable;
@@ -15,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 public class JShellSessionService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(JShellSessionService.class);
     private Config config;
     private StartupScriptsService startupScriptsService;
     private ScheduledExecutorService scheduler;
@@ -32,7 +35,7 @@ public class JShellSessionService {
                 try {
                     deleteSession(id);
                 } catch (DockerException ex) {
-                    ex.printStackTrace();
+                    LOGGER.error("Unexpected error when deleting session.", ex);
                 }
             }
         }, config.schedulerSessionKillScanRateSeconds(), config.schedulerSessionKillScanRateSeconds(), TimeUnit.SECONDS);
@@ -41,8 +44,9 @@ public class JShellSessionService {
         JShellService shellService = jshellSessions.get(id);
         if(shellService == null) return;
         if(!shellService.isClosed()) {
-            throw new RuntimeException("JShell Service isn't dead when it should for id " + id);
+            throw new IllegalStateException("JShell Service isn't dead when it should for id " + id);
         }
+        LOGGER.info("Session {} died.", id);
         jshellSessions.remove(id);
     }
 
@@ -52,15 +56,15 @@ public class JShellSessionService {
 
     public JShellService session(String id, @Nullable StartupScriptId startupScriptId) throws DockerException {
         if(!hasSession(id)) {
-            return createSession(id, config.regularSessionTimeoutSeconds(), true, config.evalTimeoutSeconds(), config.evalTimeoutValidationLeeway(), config.sysOutCharLimit(), startupScriptId);
+            return createSession(new SessionInfo(id, true, startupScriptId, config));
         }
         return jshellSessions.get(id);
     }
     public JShellService session(@Nullable StartupScriptId startupScriptId) throws DockerException {
-        return createSession(UUID.randomUUID().toString(), config.regularSessionTimeoutSeconds(), false, config.evalTimeoutSeconds(), config.evalTimeoutValidationLeeway(), config.sysOutCharLimit(), startupScriptId);
+        return createSession(new SessionInfo(UUID.randomUUID().toString(), false, startupScriptId, config));
     }
     public JShellService oneTimeSession(@Nullable StartupScriptId startupScriptId) throws DockerException {
-        return createSession(UUID.randomUUID().toString(), config.oneTimeSessionTimeoutSeconds(), false, config.evalTimeoutSeconds(), config.evalTimeoutValidationLeeway(), config.sysOutCharLimit(), startupScriptId);
+        return createSession(new SessionInfo(UUID.randomUUID().toString(), false, startupScriptId, config));
     }
 
     public void deleteSession(String id) throws DockerException {
@@ -69,26 +73,27 @@ public class JShellSessionService {
         scheduler.schedule(service::close, 500, TimeUnit.MILLISECONDS);
     }
 
-    private synchronized JShellService createSession(String id, long sessionTimeout, boolean renewable, long evalTimeout, long evalTimeoutValidationLeeway, int sysOutCharLimit, @Nullable StartupScriptId startupScriptId) throws DockerException {
-        if(hasSession(id)) {    //Just in case race condition happens just before createSession
-            return jshellSessions.get(id);
+    private synchronized JShellService createSession(SessionInfo sessionInfo) throws DockerException {
+        if(hasSession(sessionInfo.id())) {    //Just in case race condition happens just before createSession
+            return jshellSessions.get(sessionInfo.id());
         }
+        LOGGER.info("Creating session : {}.", sessionInfo);
         if(jshellSessions.size() >= config.maxAliveSessions()) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Too many sessions, try again later :(.");
         }
         JShellService service = new JShellService(
                 dockerService,
                 this,
-                id,
-                sessionTimeout,
-                renewable,
-                evalTimeout,
-                evalTimeoutValidationLeeway,
-                sysOutCharLimit,
+                sessionInfo.id(),
+                sessionInfo.sessionTimeout(),
+                sessionInfo.renewable(),
+                sessionInfo.evalTimeout(),
+                sessionInfo.evalTimeoutValidationLeeway(),
+                sessionInfo.sysOutCharLimit(),
                 config.dockerMaxRamMegaBytes(),
                 config.dockerCPUsUsage(),
-                startupScriptsService.get(startupScriptId));
-        jshellSessions.put(id, service);
+                startupScriptsService.get(sessionInfo.startupScriptId()));
+        jshellSessions.put(sessionInfo.id(), service);
         return service;
     }
 
