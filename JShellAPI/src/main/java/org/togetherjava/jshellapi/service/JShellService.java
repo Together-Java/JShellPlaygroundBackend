@@ -55,6 +55,7 @@ public class JShellService implements Closeable {
             writer.write(sanitize(startupScript));
             writer.newLine();
         } catch (IOException | InterruptedException e) {
+            LOGGER.warn("Unexpected error during creation.", e);
             throw new DockerException(e);
         }
         this.doingOperation = false;
@@ -84,6 +85,7 @@ public class JShellService implements Closeable {
 
             return Optional.of(readResult());
         } catch (DockerException | IOException | NumberFormatException ex) {
+            LOGGER.warn("Unexpected error.", ex);
             close();
             throw new DockerException(ex);
         } finally {
@@ -151,6 +153,7 @@ public class JShellService implements Closeable {
             }
             return Optional.of(snippets);
         } catch (IOException ex) {
+            LOGGER.warn("Unexpected error.", ex);
             close();
             throw new DockerException(ex);
         } finally {
@@ -236,6 +239,7 @@ public class JShellService implements Closeable {
                 }
             }
         } catch (IOException ex) {
+            LOGGER.warn("Unexpected error.", ex);
             throw new DockerException(ex);
         }
     }
