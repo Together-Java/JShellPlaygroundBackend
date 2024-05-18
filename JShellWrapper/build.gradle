@@ -8,7 +8,6 @@ group 'org.togetherjava'
 version '1.0-SNAPSHOT'
 
 mainClassName = 'Main' // Debugging only
-sourceCompatibility = 19
 
 run { // Debugging only
     standardInput = System.in
