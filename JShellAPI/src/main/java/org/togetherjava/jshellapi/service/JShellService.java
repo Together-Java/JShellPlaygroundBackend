@@ -37,6 +37,10 @@ public class JShellService implements Closeable {
         this.evalTimeout = evalTimeout;
         this.evalTimeoutValidationLeeway = evalTimeoutValidationLeeway;
         this.lastTimeoutUpdate = Instant.now();
+        if(!dockerService.isDead(containerName())) {
+            LOGGER.error("Tried to create an existing container {}.", containerName());
+            throw new DockerException("The session isn't completely destroyed, try again later.");
+        }
         try {
             String containerId = dockerService.spawnContainer(
                     maxMemory,
