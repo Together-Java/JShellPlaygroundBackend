@@ -10,6 +10,7 @@ import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.togetherjava.jshellapi.Config;
 
@@ -52,7 +53,7 @@ public class DockerService implements DisposableBean {
     }
 
     public String spawnContainer(
-            long maxMemoryMegs, long cpus, String name, Duration evalTimeout, long sysoutLimit
+            long maxMemoryMegs, long cpus, @Nullable String cpuSetCpus, String name, Duration evalTimeout, long sysoutLimit
     ) throws InterruptedException {
         String imageName = "togetherjava.org:5001/togetherjava/jshellwrapper";
         boolean presentLocally = client.listImagesCmd()
@@ -82,6 +83,7 @@ public class DockerService implements DisposableBean {
                                 .withReadonlyRootfs(true)
                                 .withMemory(maxMemoryMegs * 1024 * 1024)
                                 .withCpuCount(cpus)
+                                .withCpusetCpus(cpuSetCpus)
                 )
                 .withStdinOpen(true)
                 .withAttachStdin(true)

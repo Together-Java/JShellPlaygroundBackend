@@ -3,6 +3,7 @@ package org.togetherjava.jshellapi.service;
 import org.apache.tomcat.util.http.fileupload.util.Closeable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.lang.Nullable;
 import org.togetherjava.jshellapi.dto.*;
 import org.togetherjava.jshellapi.exceptions.DockerException;
 
@@ -29,7 +30,7 @@ public class JShellService implements Closeable {
     private final DockerService dockerService;
     private final int startupScriptSize;
 
-    public JShellService(DockerService dockerService, JShellSessionService sessionService, String id, long timeout, boolean renewable, long evalTimeout, long evalTimeoutValidationLeeway, int sysOutCharLimit, int maxMemory, double cpus, String startupScript) throws DockerException {
+    public JShellService(DockerService dockerService, JShellSessionService sessionService, String id, long timeout, boolean renewable, long evalTimeout, long evalTimeoutValidationLeeway, int sysOutCharLimit, int maxMemory, double cpus, @Nullable String cpuSetCpus, String startupScript) throws DockerException {
         this.dockerService = dockerService;
         this.sessionService = sessionService;
         this.id = id;
@@ -46,6 +47,7 @@ public class JShellService implements Closeable {
             String containerId = dockerService.spawnContainer(
                     maxMemory,
                     (long) Math.ceil(cpus),
+                    cpuSetCpus,
                     containerName(),
                     Duration.ofSeconds(evalTimeout),
                     sysOutCharLimit
