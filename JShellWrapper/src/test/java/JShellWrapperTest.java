@@ -215,7 +215,7 @@ class JShellWrapperTest {
                 0
                 SYNTAX_ERROR
                 print(
-                print(\\n
+                
                 false
                 """);
         // CONSIDERED_INCOMPLETE
@@ -228,7 +228,7 @@ class JShellWrapperTest {
                 0
                 SYNTAX_ERROR
                 while(true)
-                while(true)\\n
+                
                 false
                 """);
         evalTest("""
@@ -240,7 +240,7 @@ class JShellWrapperTest {
                 0
                 SYNTAX_ERROR
                 for(int i = 0; i < 10; i++)
-                for(int i = 0; i < 10; i++)\\n
+                
                 false
                 """);
     }
