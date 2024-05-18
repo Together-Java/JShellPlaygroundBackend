@@ -27,6 +27,7 @@ public class JShellService implements Closeable {
     private final long evalTimeout;
     private boolean doingOperation;
     private final DockerService dockerService;
+    private final int startupScriptSize;
 
     public JShellService(DockerService dockerService, JShellSessionService sessionService, String id, long timeout, boolean renewable, long evalTimeout, long evalTimeoutValidationLeeway, int sysOutCharLimit, int maxMemory, double cpus, String startupScript) throws DockerException {
         this.dockerService = dockerService;
@@ -38,7 +39,7 @@ public class JShellService implements Closeable {
         this.evalTimeoutValidationLeeway = evalTimeoutValidationLeeway;
         this.lastTimeoutUpdate = Instant.now();
         if(!dockerService.isDead(containerName())) {
-            LOGGER.error("Tried to create an existing container {}.", containerName());
+            LOGGER.warn("Tried to create an existing container {}.", containerName());
             throw new DockerException("The session isn't completely destroyed, try again later.");
         }
         try {
@@ -58,9 +59,12 @@ public class JShellService implements Closeable {
             reader = new BufferedReader(new InputStreamReader(containerOutput));
             writer.write(sanitize(startupScript));
             writer.newLine();
-        } catch (IOException | InterruptedException e) {
+            writer.flush();
+            checkContainerOK();
+            startupScriptSize = Integer.parseInt(reader.readLine());
+        } catch (Exception e) {
             LOGGER.warn("Unexpected error during creation.", e);
-            throw new DockerException(e);
+            throw new DockerException("Creation of the session failed.", e);
         }
         this.doingOperation = false;
     }
@@ -136,7 +140,7 @@ public class JShellService implements Closeable {
         return new JShellResult(snippetResults, abortion, stdoutOverflow, stdout);
     }
 
-    public Optional<List<String>> snippets() throws DockerException {
+    public Optional<List<String>> snippets(boolean includeStartupScript) throws DockerException {
         synchronized (this) {
             if(!tryStartOperation())  {
                 return Optional.empty();
@@ -155,7 +159,9 @@ public class JShellService implements Closeable {
             while(!(snippet = reader.readLine()).isEmpty()) {
                 snippets.add(cleanCode(snippet));
             }
-            return Optional.of(snippets);
+            return Optional.of(
+                    includeStartupScript ? snippets : snippets.subList(startupScriptSize, snippets.size())
+            );
         } catch (IOException ex) {
             LOGGER.warn("Unexpected error.", ex);
             close();

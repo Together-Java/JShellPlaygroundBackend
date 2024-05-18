@@ -40,7 +40,7 @@ public class JShellController {
     public List<String> snippets(@PathVariable String id, @RequestParam(required = false) boolean includeStartupScript) throws DockerException {
         validateId(id);
         if(!service.hasSession(id)) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Id " + id + " not found");
-        return service.session(id, null).snippets().map(l -> includeStartupScript || l.size() < 2 ? l : l.subList(2, l.size())).orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "An operation is already running"));
+        return service.session(id, null).snippets(includeStartupScript).orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "An operation is already running"));
     }
 
     @DeleteMapping("/{id}")
