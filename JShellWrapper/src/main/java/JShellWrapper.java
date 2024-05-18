@@ -18,7 +18,11 @@ public class JShellWrapper {
         String startup = desanitize(processIn.nextLine());
         StringOutputStream jshellOut = new StringOutputStream(config.sysOutCharLimit());
         try (JShell shell = JShell.builder().out(new PrintStream(jshellOut)).build()) {
-            verifyStartupEval(eval(shell, startup, new AtomicBoolean()));
+            EvalResult startupEval = eval(shell, startup, new AtomicBoolean());
+            verifyStartupEval(startupEval);
+            ok(processOut);
+            processOut.println(startupEval.events().size());
+            processOut.flush();
             while(true) {
                 String command = processIn.nextLine();
                 switch (command) {

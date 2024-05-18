@@ -29,6 +29,8 @@ class JShellWrapperTest {
             System.out.println("Hello world!")""",
                 """
                 OK
+                0
+                OK
                 1
                 VALID
                 ADDITION
@@ -49,6 +51,8 @@ class JShellWrapperTest {
             }
             System.out.println();""",
                 """
+                OK
+                0
                 OK
                 2
                 VALID
@@ -73,6 +77,8 @@ class JShellWrapperTest {
             for(int i = 0; i < 1024; i++) System.out.print(0)""",
                 """
                 OK
+                0
+                OK
                 1
                 VALID
                 ADDITION
@@ -87,6 +93,8 @@ class JShellWrapperTest {
             1
             for(int i = 0; i <= 1024; i++) System.out.print(0)""",
                 """
+                OK
+                0
                 OK
                 1
                 VALID
@@ -106,6 +114,8 @@ class JShellWrapperTest {
             int i = 0;
             int i = 2;""",
                 """
+                OK
+                0
                 OK
                 2
                 VALID
@@ -130,6 +140,8 @@ class JShellWrapperTest {
             System.out.println("Hello world!")""",
                 """
                 OK
+                0
+                OK
                 1
                 VALID
                 ADDITION
@@ -147,6 +159,8 @@ class JShellWrapperTest {
             1
             while(true);""",
                 """
+                OK
+                0
                 OK
                 1
                 VALID
@@ -168,6 +182,8 @@ class JShellWrapperTest {
             throw new RuntimeException("Some message : fail")""",
                 """
                 OK
+                0
+                OK
                 1
                 VALID
                 ADDITION
@@ -188,6 +204,8 @@ class JShellWrapperTest {
             1
             print""",
         """
+                OK
+                0
                 OK
                 1
                 REJECTED
@@ -213,6 +231,8 @@ class JShellWrapperTest {
                 """
                 OK
                 0
+                OK
+                0
                 SYNTAX_ERROR
                 print(
                 
@@ -226,6 +246,8 @@ class JShellWrapperTest {
                 """
                 OK
                 0
+                OK
+                0
                 SYNTAX_ERROR
                 while(true)
                 
@@ -236,6 +258,8 @@ class JShellWrapperTest {
             1
             for(int i = 0; i < 10; i++)""",
                 """
+                OK
+                0
                 OK
                 0
                 SYNTAX_ERROR
@@ -253,6 +277,8 @@ class JShellWrapperTest {
             print;
             System.out.println(i);""",
         """
+                OK
+                0
                 OK
                 2
                 VALID
@@ -282,6 +308,8 @@ class JShellWrapperTest {
                 System.out.println("\\n");
             }""",
                 """
+                OK
+                0
                 OK
                 1
                 VALID

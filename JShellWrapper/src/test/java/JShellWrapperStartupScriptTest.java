@@ -20,6 +20,8 @@ class JShellWrapperStartupScriptTest {
         jshell.run(config, inputStream, new PrintStream(outputStream));
         assertEquals("""
                 OK
+                2
+                OK
                 1
                 VALID
                 ADDITION
