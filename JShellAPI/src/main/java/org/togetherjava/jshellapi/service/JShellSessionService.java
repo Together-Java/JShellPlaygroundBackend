@@ -27,6 +27,10 @@ public class JShellSessionService {
     private void initScheduler() {
         scheduler = Executors.newSingleThreadScheduledExecutor();
         scheduler.scheduleAtFixedRate(() -> {
+            jshellSessions.keySet()
+                    .stream()
+                    .filter(id -> jshellSessions.get(id).isClosed())
+                    .forEach(this::notifyDeath);
             List<String> toDie = jshellSessions.keySet()
                     .stream()
                     .filter(id -> jshellSessions.get(id).shouldDie())
@@ -41,13 +45,12 @@ public class JShellSessionService {
         }, config.schedulerSessionKillScanRateSeconds(), config.schedulerSessionKillScanRateSeconds(), TimeUnit.SECONDS);
     }
     void notifyDeath(String id) {
-        JShellService shellService = jshellSessions.get(id);
+        JShellService shellService = jshellSessions.remove(id);
         if(shellService == null) return;
         if(!shellService.isClosed()) {
-            throw new IllegalStateException("JShell Service isn't dead when it should for id " + id);
+            LOGGER.error("JShell Service isn't dead when it should for id {}.", id);
         }
         LOGGER.info("Session {} died.", id);
-        jshellSessions.remove(id);
     }
 
     public boolean hasSession(String id) {
@@ -56,15 +59,15 @@ public class JShellSessionService {
 
     public JShellService session(String id, @Nullable StartupScriptId startupScriptId) throws DockerException {
         if(!hasSession(id)) {
-            return createSession(new SessionInfo(id, true, startupScriptId, config));
+            return createSession(new SessionInfo(id, true, startupScriptId, false, config));
         }
         return jshellSessions.get(id);
     }
     public JShellService session(@Nullable StartupScriptId startupScriptId) throws DockerException {
-        return createSession(new SessionInfo(UUID.randomUUID().toString(), false, startupScriptId, config));
+        return createSession(new SessionInfo(UUID.randomUUID().toString(), false, startupScriptId, false, config));
     }
     public JShellService oneTimeSession(@Nullable StartupScriptId startupScriptId) throws DockerException {
-        return createSession(new SessionInfo(UUID.randomUUID().toString(), false, startupScriptId, config));
+        return createSession(new SessionInfo(UUID.randomUUID().toString(), false, startupScriptId, true, config));
     }
 
     public void deleteSession(String id) throws DockerException {
