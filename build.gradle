@@ -1,0 +1,71 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.diffplug.spotless:spotless-plugin-gradle:6.25.0'
+    }
+}
+
+group = 'org.togetherjava'
+version = project.version
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'com.diffplug.spotless'
+
+    spotless {
+        java {
+            importOrder()
+            googleJavaFormat()
+                    .aosp()
+                    .reflowLongStrings()
+                    .formatJavadoc(true)
+                    .reorderImports(true)
+                    .groupArtifact('com.google.googlejavaformat:google-java-format')
+            trimTrailingWhitespace()
+            indentWithSpaces()
+            endWithNewline()
+        }
+    }
+
+    group = 'org.togetherjava'
+    version = project.version
+
+    tasks.withType(JavaCompile).configureEach {
+        options.release = 21
+    }
+
+    java {
+        toolchain {
+            languageVersion.set(JavaLanguageVersion.of(21))
+        }
+    }
+
+    repositories {
+        mavenCentral()
+    }
+
+    test {
+        useJUnitPlatform()
+        testLogging {
+            events "passed", "skipped", "failed"
+        }
+        maxParallelForks = Runtime.runtime.availableProcessors()
+        systemProperty 'line.separator', '\n'
+        systemProperty 'file.encoding', 'utf-8'
+    }
+
+    sourceSets {
+        test {
+            java {
+                srcDirs 'src/test/integration', 'src/test/unit'
+            }
+        }
+    }
+
+    dependencies {
+        testImplementation 'org.junit.jupiter:junit-jupiter:5.8.1'
+        testImplementation 'org.junit.jupiter:junit-jupiter:5.8.1'
+    }
+}
