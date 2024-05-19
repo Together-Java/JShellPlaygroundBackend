@@ -1,3 +1,5 @@
+package org.togetherjava.jshell.wrapper;
+
 import jdk.jshell.*;
 
 import java.io.InputStream;

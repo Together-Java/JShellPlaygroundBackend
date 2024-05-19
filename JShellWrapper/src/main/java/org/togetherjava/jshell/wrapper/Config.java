@@ -1,3 +1,5 @@
+package org.togetherjava.jshell.wrapper;
+
 public record Config(int evalTimeoutSeconds, int sysOutCharLimit) {
     static int loadIntEnv(String envName) {
         return Integer.parseInt(System.getenv(envName));

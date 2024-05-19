@@ -1,3 +1,5 @@
+package org.togetherjava.jshell.wrapper;
+
 public class TimeoutWatcher {
     private final Thread thread;
     private boolean timeout;

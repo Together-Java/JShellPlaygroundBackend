@@ -1,3 +1,5 @@
+package org.togetherjava.jshell.wrapper;
+
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;

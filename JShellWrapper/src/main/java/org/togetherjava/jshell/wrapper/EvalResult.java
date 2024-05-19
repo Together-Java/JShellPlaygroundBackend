@@ -1,3 +1,5 @@
+package org.togetherjava.jshell.wrapper;
+
 import jdk.jshell.SnippetEvent;
 
 import java.util.List;

@@ -2,6 +2,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.togetherjava.jshell.wrapper.Config;
+import org.togetherjava.jshell.wrapper.JShellWrapper;
 
 import java.io.InputStream;
 import java.io.PrintStream;

@@ -32,7 +32,7 @@ jib {
     }
     container {
         ports = [ "8081-8081" ]
-        mainClass = 'Main'
+        mainClass = 'org.togetherjava.jshell.Main'
         setCreationTime(Instant.now().toString())
     }
 }

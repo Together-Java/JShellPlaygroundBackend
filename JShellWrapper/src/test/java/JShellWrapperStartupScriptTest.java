@@ -1,6 +1,8 @@
 import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.Test;
+import org.togetherjava.jshell.wrapper.Config;
+import org.togetherjava.jshell.wrapper.JShellWrapper;
 
 import java.io.PrintStream;
 

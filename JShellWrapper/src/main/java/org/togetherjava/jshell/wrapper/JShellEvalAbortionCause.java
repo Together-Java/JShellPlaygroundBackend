@@ -1,3 +1,5 @@
+package org.togetherjava.jshell.wrapper;
+
 import java.util.List;
 
 public sealed interface JShellEvalAbortionCause {
