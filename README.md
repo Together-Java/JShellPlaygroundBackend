@@ -60,4 +60,4 @@ networks:
 - Run `docker compose start` or `docker-compose start` in the folder, depending of your version of Docker.
 
 ## How to use JShellApi ?
-See [GUIDE.MD](JShellAPI/GUIDE.MD)
+See [GUIDE.MD](JShellAPI/README.MD)
