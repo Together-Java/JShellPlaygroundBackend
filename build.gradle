@@ -64,7 +64,12 @@ subprojects {
     }
 
     dependencies {
+<<<<<<< HEAD
         testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
         testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+=======
+        testImplementation 'org.junit.jupiter:junit-jupiter:5.8.1'
+        testImplementation 'org.junit.jupiter:junit-jupiter:5.8.1'
+>>>>>>> 1a41fc8 (Merge to master (#20))
     }
 }
