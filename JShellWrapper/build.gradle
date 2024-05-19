@@ -2,14 +2,21 @@ import java.time.Instant
 
 plugins {
     id 'application'
-    id 'com.google.cloud.tools.jib' version '3.3.2'
+    id 'com.google.cloud.tools.jib' version '3.4.0'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
-mainClassName = 'Main'
+/* Application plugin is used for debugging */
+application {
+    mainClassName = 'org.togetherjava.jshell.Main'
+    run {
+        standardInput = System.in
+        systemProperty 'line.separator', '\n'
+        systemProperty 'file.encoding', 'UTF-8'
+    }
+}
 
-run {
-    standardInput = System.in
+test {
     systemProperty 'line.separator', '\n'
     systemProperty 'file.encoding', 'UTF-8'
 }
