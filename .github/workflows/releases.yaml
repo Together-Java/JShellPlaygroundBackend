@@ -9,28 +9,27 @@ defaults:
   run:
     shell: bash
 
-env:
-  JAVA_VERSION: 19
-
 jobs:
 
   release:
     name: Build and release
     runs-on: ubuntu-latest
     steps:
-      - name: Set up JDK
-        uses: actions/setup-java@v1
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Install Java
+        uses: actions/setup-java@v3
         with:
-          java-version: ${{ env.JAVA_VERSION }}
+          java-version: 21
+          distribution: 'corretto'
 
-      - uses: actions/checkout@v2
-
-      - name: Build shadow jar
+      - name: Generate FAT Jar
         run: ./gradlew shadowJar
 
       - name: Create release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: app/build/libs/TJ-Plays.jar
+          files: app/build/libs/TJ-JShell-Backend.jar

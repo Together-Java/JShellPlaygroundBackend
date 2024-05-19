@@ -2,33 +2,28 @@ name: Docker Publish
 
 on:
   push:
-    branches:
-      - 'master'
-      - 'feature/cicd-workflows'
-
-env:
-  JAVA_VERSION: 19
+    branches: [ master ]
+  workflow_dispatch:
 
 jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
-      - name: Set up JDK
-        uses: actions/setup-java@v1
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Install Java
+        uses: actions/setup-java@v3
         with:
-          java-version: ${{ env.JAVA_VERSION }}
-      - name: Extract branch name
-        shell: bash
-        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-        id: extract_branch
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      - name: Build and Publish Docker Image
+          java-version: '21'
+          distribution: 'corretto'
+
+      - name: Build Docker image and publish
         env:
           ORG_REGISTRY_USER: ${{ secrets.ORG_REGISTRY_USER }}
           ORG_REGISTRY_PASSWORD: ${{ secrets.ORG_REGISTRY_PASSWORD }}
-          BRANCH_NAME: ${{ steps.extract_branch.outputs.branch }}
+          BRANCH_NAME: ${{ github.ref_name }}
         run: ./gradlew jib
-      - name: Re-Deploy
+
+      - name: Trigger deployment
         run: "curl -H 'Authorization: Bearer ${{ secrets.ORG_WATCHTOWER_TOKEN }}' https://togetherjava.org:5003/v1/update"

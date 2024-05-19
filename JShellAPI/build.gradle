@@ -11,12 +11,6 @@ plugins {
 group 'org.togetherjava'
 version '1.0-SNAPSHOT'
 
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(19)
-    }
-}
-
 repositories {
     mavenCentral()
 }
@@ -34,7 +28,7 @@ dependencies {
 var outputImage = 'togetherjava.org:5001/togetherjava/jshellbackend:master' ?: 'latest'
 
 jib {
-    from.image = 'eclipse-temurin:19'
+    from.image = 'eclipse-temurin:21'
     to {
         image = outputImage
         auth {
