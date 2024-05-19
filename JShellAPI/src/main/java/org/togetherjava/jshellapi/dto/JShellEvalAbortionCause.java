@@ -9,18 +9,15 @@ import java.util.List;
 public sealed interface JShellEvalAbortionCause {
 
     @JsonTypeName("TIMEOUT")
-    record TimeoutAbortionCause() implements JShellEvalAbortionCause {
-    }
+    record TimeoutAbortionCause() implements JShellEvalAbortionCause {}
 
     @JsonTypeName("UNCAUGHT_EXCEPTION")
-    record UnhandledExceptionAbortionCause(String exceptionClass, String exceptionMessage) implements JShellEvalAbortionCause {
-    }
+    record UnhandledExceptionAbortionCause(String exceptionClass, String exceptionMessage)
+            implements JShellEvalAbortionCause {}
 
     @JsonTypeName("COMPILE_TIME_ERROR")
-    record CompileTimeErrorAbortionCause(List<String> errors) implements JShellEvalAbortionCause {
-    }
+    record CompileTimeErrorAbortionCause(List<String> errors) implements JShellEvalAbortionCause {}
 
     @JsonTypeName("SYNTAX_ERROR")
-    record SyntaxErrorAbortionCause() implements JShellEvalAbortionCause {
-    }
+    record SyntaxErrorAbortionCause() implements JShellEvalAbortionCause {}
 }

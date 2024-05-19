@@ -7,13 +7,17 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 public class Utils {
-    public static <E extends Enum<E>, X extends Exception> E nameOrElseThrow(Class<E> c, String name, Function<String, X> exceptionFunction) throws X {
+    public static <E extends Enum<E>, X extends Exception> E nameOrElseThrow(
+            Class<E> c, String name, Function<String, X> exceptionFunction) throws X {
         return name(c, name).orElseThrow(() -> exceptionFunction.apply(name));
     }
+
     public static <E extends Enum<E>> Optional<E> name(Class<E> c, String name) {
         return predicate(c, e -> e.name().equals(name)).findAny();
     }
-    public static <E extends Enum<E>, K> Optional<E> key(Class<E> c, Function<E, K> keyMapper, K name) {
+
+    public static <E extends Enum<E>, K> Optional<E> key(
+            Class<E> c, Function<E, K> keyMapper, K name) {
         return predicate(c, e -> keyMapper.apply(e).equals(name)).findAny();
     }
 
@@ -22,7 +26,6 @@ public class Utils {
         if (enumConstants == null) {
             throw new RuntimeException(); // Impossible
         }
-        return Arrays.stream(enumConstants)
-                .filter(predicate);
+        return Arrays.stream(enumConstants).filter(predicate);
     }
 }

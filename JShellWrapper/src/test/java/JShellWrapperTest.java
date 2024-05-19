@@ -1,29 +1,33 @@
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.io.InputStream;
 import java.io.PrintStream;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 class JShellWrapperTest {
     static Config config;
     static JShellWrapper jshell;
     InputStream in;
     PrintStream out;
+
     @BeforeAll
     static void setUp() {
         config = new Config(5, 1024);
         jshell = new JShellWrapper();
     }
+
     void evalTest(String input, String expectedOutput) {
         UnboundStringOutputStream out = new UnboundStringOutputStream(128);
         jshell.run(config, new StringInputStream("\n" + input + "\nexit\n"), new PrintStream(out));
         assertEquals(expectedOutput + "\nOK\n", out.readAll());
     }
+
     @Test
     void testHelloWorld() {
-        evalTest("""
+        evalTest(
+                """
             eval
             1
             System.out.println("Hello world!")""",
@@ -36,14 +40,16 @@ class JShellWrapperTest {
                 ADDITION
                 1
                 System.out.println("Hello world!")
-                
-                
+
+
                 false
                 Hello world!\\n""");
     }
+
     @Test
     void testMultilinesInput() {
-        evalTest("""
+        evalTest(
+                """
             eval
             4
             for(int i = 0; i < 10; i++) {
@@ -59,19 +65,21 @@ class JShellWrapperTest {
                 ADDITION
                 1
                 for(int i = 0; i < 10; i++) {\\n    System.out.print(i);\\n}
-                
+
                 VALID
                 ADDITION
                 2
                 \\nSystem.out.println();
-                
-                
+
+
                 false
                 0123456789\\n""");
     }
+
     @Test
     void testStdoutOverflow() {
-        evalTest("""
+        evalTest(
+                """
             eval
             1
             for(int i = 0; i < 1024; i++) System.out.print(0)""",
@@ -84,11 +92,13 @@ class JShellWrapperTest {
                 ADDITION
                 1
                 for(int i = 0; i < 1024; i++) System.out.print(0);
-                
-                                
+
+
                 false
-                %s""".formatted("0".repeat(1024)));
-        evalTest("""
+                %s"""
+                        .formatted("0".repeat(1024)));
+        evalTest(
+                """
             eval
             1
             for(int i = 0; i <= 1024; i++) System.out.print(0)""",
@@ -101,14 +111,17 @@ class JShellWrapperTest {
                 ADDITION
                 1
                 for(int i = 0; i <= 1024; i++) System.out.print(0);
-                
-                
+
+
                 true
-                %s""".formatted("0".repeat(1024)));
+                %s"""
+                        .formatted("0".repeat(1024)));
     }
+
     @Test
     void testModificationAndMultiplesSnippets() {
-        evalTest("""
+        evalTest(
+                """
             eval
             2
             int i = 0;
@@ -128,13 +141,15 @@ class JShellWrapperTest {
                 1
                 \\nint i = 2;
                 2
-                
+
                 false
                 """);
     }
+
     @Test
     void testUseId() {
-        evalTest("""
+        evalTest(
+                """
             eval
             1
             System.out.println("Hello world!")""",
@@ -147,14 +162,16 @@ class JShellWrapperTest {
                 ADDITION
                 1
                 System.out.println("Hello world!")
-                
-                
+
+
                 false
                 Hello world!\\n""");
     }
+
     @Test
     void testTimeout() {
-        evalTest("""
+        evalTest(
+                """
             eval
             1
             while(true);""",
@@ -170,13 +187,15 @@ class JShellWrapperTest {
                 NONE
                 TIMEOUT
                 while(true);
-                                
+
                 false
                 """);
     }
+
     @Test
-    void testUncaughtException() {// TODO other kind of exception, not in EvalException
-        evalTest("""
+    void testUncaughtException() { // TODO other kind of exception, not in EvalException
+        evalTest(
+                """
             eval
             1
             throw new RuntimeException("Some message : fail")""",
@@ -193,17 +212,19 @@ class JShellWrapperTest {
                 UNCAUGHT_EXCEPTION
                 java.lang.RuntimeException:Some message : fail
                 throw new RuntimeException("Some message : fail");
-                
+
                 false
                 """);
     }
+
     @Test
     void testRejected() {
-        evalTest("""
+        evalTest(
+                """
             eval
             1
             print""",
-        """
+                """
                 OK
                 0
                 OK
@@ -217,14 +238,16 @@ class JShellWrapperTest {
                 1
                 cannot find symbol\\n  symbol:   variable print\\n  location: class\s
                 print
-                                
+
                 false
                 """);
     }
+
     @Test
     void testSyntaxError() {
         // DEFINITELY_INCOMPLETE
-        evalTest("""
+        evalTest(
+                """
             eval
             1
             print(""",
@@ -235,11 +258,12 @@ class JShellWrapperTest {
                 0
                 SYNTAX_ERROR
                 print(
-                
+
                 false
                 """);
         // CONSIDERED_INCOMPLETE
-        evalTest("""
+        evalTest(
+                """
             eval
             1
             while(true)""",
@@ -250,10 +274,11 @@ class JShellWrapperTest {
                 0
                 SYNTAX_ERROR
                 while(true)
-                
+
                 false
                 """);
-        evalTest("""
+        evalTest(
+                """
             eval
             1
             for(int i = 0; i < 10; i++)""",
@@ -264,19 +289,21 @@ class JShellWrapperTest {
                 0
                 SYNTAX_ERROR
                 for(int i = 0; i < 10; i++)
-                
+
                 false
                 """);
     }
+
     @Test
     void testRejectedAndMultiples() {
-        evalTest("""
+        evalTest(
+                """
             eval
             3
             int i = 0;
             print;
             System.out.println(i);""",
-        """
+                """
                 OK
                 0
                 OK
@@ -290,7 +317,7 @@ class JShellWrapperTest {
                 ADDITION
                 2
                 \\nprint;
-                NONE            
+                NONE
                 COMPILE_TIME_ERROR
                 1
                 cannot find symbol\\n  symbol:   variable print\\n  location: class\s
@@ -299,9 +326,11 @@ class JShellWrapperTest {
                 false
                 """);
     }
+
     @Test
     void testMultilinesAndHardcodedNewLineInString() {
-        evalTest("""
+        evalTest(
+                """
             eval
             3
             {
@@ -316,8 +345,8 @@ class JShellWrapperTest {
                 ADDITION
                 1
                 {\\n    System.out.println("\\\\n");\\n}
-                
-                
+
+
                 false
                 \\n\\n""");
     }
