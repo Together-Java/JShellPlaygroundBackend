@@ -11,7 +11,7 @@ public class StringInputStream extends InputStream {
 
     @Override
     public int read() {
-        if(i == content.length) return -1;
+        if (i == content.length) return -1;
         return content[i++] & 0xFF;
     }
 }

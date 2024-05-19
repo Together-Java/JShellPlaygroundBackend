@@ -30,7 +30,20 @@ public class JShellService implements Closeable {
     private final DockerService dockerService;
     private final int startupScriptSize;
 
-    public JShellService(DockerService dockerService, JShellSessionService sessionService, String id, long timeout, boolean renewable, long evalTimeout, long evalTimeoutValidationLeeway, int sysOutCharLimit, int maxMemory, double cpus, @Nullable String cpuSetCpus, String startupScript) throws DockerException {
+    public JShellService(
+            DockerService dockerService,
+            JShellSessionService sessionService,
+            String id,
+            long timeout,
+            boolean renewable,
+            long evalTimeout,
+            long evalTimeoutValidationLeeway,
+            int sysOutCharLimit,
+            int maxMemory,
+            double cpus,
+            @Nullable String cpuSetCpus,
+            String startupScript)
+            throws DockerException {
         this.dockerService = dockerService;
         this.sessionService = sessionService;
         this.id = id;
@@ -39,25 +52,25 @@ public class JShellService implements Closeable {
         this.evalTimeout = evalTimeout;
         this.evalTimeoutValidationLeeway = evalTimeoutValidationLeeway;
         this.lastTimeoutUpdate = Instant.now();
-        if(!dockerService.isDead(containerName())) {
+        if (!dockerService.isDead(containerName())) {
             LOGGER.warn("Tried to create an existing container {}.", containerName());
             throw new DockerException("The session isn't completely destroyed, try again later.");
         }
         try {
-            String containerId = dockerService.spawnContainer(
-                    maxMemory,
-                    (long) Math.ceil(cpus),
-                    cpuSetCpus,
-                    containerName(),
-                    Duration.ofSeconds(evalTimeout),
-                    sysOutCharLimit
-            );
+            String containerId =
+                    dockerService.spawnContainer(
+                            maxMemory,
+                            (long) Math.ceil(cpus),
+                            cpuSetCpus,
+                            containerName(),
+                            Duration.ofSeconds(evalTimeout),
+                            sysOutCharLimit);
             PipedInputStream containerInput = new PipedInputStream();
-            this.writer = new BufferedWriter(new OutputStreamWriter(new PipedOutputStream(containerInput)));
-            InputStream containerOutput = dockerService.startAndAttachToContainer(
-                    containerId,
-                    containerInput
-            );
+            this.writer =
+                    new BufferedWriter(
+                            new OutputStreamWriter(new PipedOutputStream(containerInput)));
+            InputStream containerOutput =
+                    dockerService.startAndAttachToContainer(containerId, containerInput);
             reader = new BufferedReader(new InputStreamReader(containerOutput));
             writer.write(sanitize(startupScript));
             writer.newLine();
@@ -70,9 +83,10 @@ public class JShellService implements Closeable {
         }
         this.doingOperation = false;
     }
+
     public Optional<JShellResult> eval(String code) throws DockerException {
         synchronized (this) {
-            if(!tryStartOperation())  {
+            if (!tryStartOperation()) {
                 return Optional.empty();
             }
         }
@@ -82,7 +96,7 @@ public class JShellService implements Closeable {
         }
         updateLastTimeout();
         sessionService.scheduleEvalTimeoutValidation(id, evalTimeout + evalTimeoutValidationLeeway);
-        if(!code.endsWith("\n")) code += '\n';
+        if (!code.endsWith("\n")) code += '\n';
         try {
             writer.write("eval");
             writer.newLine();
@@ -102,12 +116,21 @@ public class JShellService implements Closeable {
             stopOperation();
         }
     }
+
     private JShellResult readResult() throws IOException, NumberFormatException, DockerException {
         final int snippetsCount = Integer.parseInt(reader.readLine());
         List<JShellSnippetResult> snippetResults = new ArrayList<>();
-        for(int i = 0; i < snippetsCount; i++) {
-            SnippetStatus status = Utils.nameOrElseThrow(SnippetStatus.class, reader.readLine(), name -> new DockerException(name + " isn't an enum constant"));
-            SnippetType type = Utils.nameOrElseThrow(SnippetType.class, reader.readLine(), name -> new DockerException(name + " isn't an enum constant"));
+        for (int i = 0; i < snippetsCount; i++) {
+            SnippetStatus status =
+                    Utils.nameOrElseThrow(
+                            SnippetStatus.class,
+                            reader.readLine(),
+                            name -> new DockerException(name + " isn't an enum constant"));
+            SnippetType type =
+                    Utils.nameOrElseThrow(
+                            SnippetType.class,
+                            reader.readLine(),
+                            name -> new DockerException(name + " isn't an enum constant"));
             int snippetId = Integer.parseInt(reader.readLine());
             String source = cleanCode(reader.readLine());
             String result = reader.readLine().transform(r -> r.equals("NONE") ? null : r);
@@ -115,24 +138,29 @@ public class JShellService implements Closeable {
         }
         JShellEvalAbortion abortion = null;
         String rawAbortionCause = reader.readLine();
-        if(!rawAbortionCause.isEmpty()) {
-            JShellEvalAbortionCause abortionCause = switch (rawAbortionCause) {
-                case "TIMEOUT" -> new JShellEvalAbortionCause.TimeoutAbortionCause();
-                case "UNCAUGHT_EXCEPTION" -> {
-                    String[] split = reader.readLine().split(":");
-                    yield new JShellEvalAbortionCause.UnhandledExceptionAbortionCause(split[0], split[1]);
-                }
-                case "COMPILE_TIME_ERROR" -> {
-                    int errorCount = Integer.parseInt(reader.readLine());
-                    List<String> errors = new ArrayList<>();
-                    for(int i = 0; i < errorCount; i++) {
-                        errors.add(desanitize(reader.readLine()));
-                    }
-                    yield new JShellEvalAbortionCause.CompileTimeErrorAbortionCause(errors);
-                }
-                case "SYNTAX_ERROR" -> new JShellEvalAbortionCause.SyntaxErrorAbortionCause();
-                default -> throw new DockerException("Abortion cause " + rawAbortionCause + " doesn't exist");
-            };
+        if (!rawAbortionCause.isEmpty()) {
+            JShellEvalAbortionCause abortionCause =
+                    switch (rawAbortionCause) {
+                        case "TIMEOUT" -> new JShellEvalAbortionCause.TimeoutAbortionCause();
+                        case "UNCAUGHT_EXCEPTION" -> {
+                            String[] split = reader.readLine().split(":");
+                            yield new JShellEvalAbortionCause.UnhandledExceptionAbortionCause(
+                                    split[0], split[1]);
+                        }
+                        case "COMPILE_TIME_ERROR" -> {
+                            int errorCount = Integer.parseInt(reader.readLine());
+                            List<String> errors = new ArrayList<>();
+                            for (int i = 0; i < errorCount; i++) {
+                                errors.add(desanitize(reader.readLine()));
+                            }
+                            yield new JShellEvalAbortionCause.CompileTimeErrorAbortionCause(errors);
+                        }
+                        case "SYNTAX_ERROR" ->
+                                new JShellEvalAbortionCause.SyntaxErrorAbortionCause();
+                        default ->
+                                throw new DockerException(
+                                        "Abortion cause " + rawAbortionCause + " doesn't exist");
+                    };
             String causeSource = cleanCode(reader.readLine());
             String remainingSource = cleanCode(reader.readLine());
             abortion = new JShellEvalAbortion(causeSource, remainingSource, abortionCause);
@@ -144,7 +172,7 @@ public class JShellService implements Closeable {
 
     public Optional<List<String>> snippets(boolean includeStartupScript) throws DockerException {
         synchronized (this) {
-            if(!tryStartOperation())  {
+            if (!tryStartOperation()) {
                 return Optional.empty();
             }
         }
@@ -158,12 +186,13 @@ public class JShellService implements Closeable {
 
             List<String> snippets = new ArrayList<>();
             String snippet;
-            while(!(snippet = reader.readLine()).isEmpty()) {
+            while (!(snippet = reader.readLine()).isEmpty()) {
                 snippets.add(cleanCode(snippet));
             }
             return Optional.of(
-                    includeStartupScript ? snippets : snippets.subList(startupScriptSize, snippets.size())
-            );
+                    includeStartupScript
+                            ? snippets
+                            : snippets.subList(startupScriptSize, snippets.size()));
         } catch (IOException ex) {
             LOGGER.warn("Unexpected error.", ex);
             close();
@@ -178,7 +207,10 @@ public class JShellService implements Closeable {
     }
 
     public boolean isInvalidEvalTimeout() {
-        return doingOperation && lastTimeoutUpdate.plusSeconds(evalTimeout + evalTimeoutValidationLeeway).isBefore(Instant.now());
+        return doingOperation
+                && lastTimeoutUpdate
+                        .plusSeconds(evalTimeout + evalTimeoutValidationLeeway)
+                        .isBefore(Instant.now());
     }
 
     public boolean shouldDie() {
@@ -208,7 +240,7 @@ public class JShellService implements Closeable {
             } finally {
                 reader.close();
             }
-        } catch(IOException ex) {
+        } catch (IOException ex) {
             LOGGER.error("Unexpected error while closing.", ex);
         } finally {
             sessionService.notifyDeath(id);
@@ -221,14 +253,14 @@ public class JShellService implements Closeable {
     }
 
     private void updateLastTimeout() {
-        if(renewable) {
+        if (renewable) {
             lastTimeoutUpdate = Instant.now();
         }
     }
 
     private void checkContainerOK() throws DockerException {
         try {
-            if(dockerService.isDead(containerName())) {
+            if (dockerService.isDead(containerName())) {
                 try {
                     close();
                 } finally {
@@ -236,18 +268,19 @@ public class JShellService implements Closeable {
                 }
             }
             String OK = reader.readLine();
-            if(OK == null) {
+            if (OK == null) {
                 try {
                     close();
                 } finally {
                     throw new DockerException("Container of session " + id + " is dead");
                 }
             }
-            if(!OK.equals("OK")) {
+            if (!OK.equals("OK")) {
                 try {
                     close();
                 } finally {
-                    throw new DockerException("Container of session " + id + " returned invalid info : " + OK);
+                    throw new DockerException(
+                            "Container of session " + id + " returned invalid info : " + OK);
                 }
             }
         } catch (IOException ex) {
@@ -257,10 +290,11 @@ public class JShellService implements Closeable {
     }
 
     private synchronized boolean tryStartOperation() {
-        if(doingOperation) return false;
+        if (doingOperation) return false;
         doingOperation = true;
         return true;
     }
+
     private void stopOperation() {
         doingOperation = false;
     }
@@ -272,8 +306,8 @@ public class JShellService implements Closeable {
     private static String desanitize(String text) {
         return text.replace("\\n", "\n").replace("\\\\", "\\");
     }
+
     private static String cleanCode(String code) {
         return code.translateEscapes();
     }
-
 }

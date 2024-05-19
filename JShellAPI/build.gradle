@@ -1,36 +1,26 @@
-import org.gradle.jvm.toolchain.JavaLanguageVersion
+import java.time.Instant
 
 plugins {
-    id 'java'
-    id 'org.springframework.boot' version '3.0.1'
+    id 'org.springframework.boot' version '3.2.5'
     id 'io.spring.dependency-management' version '1.1.0'
     id 'com.google.cloud.tools.jib' version '3.3.2'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
-group 'org.togetherjava'
-version '1.0-SNAPSHOT'
-
-repositories {
-    mavenCentral()
-}
-
 dependencies {
     implementation project(':JShellWrapper')
     implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'com.github.docker-java:docker-java-transport-httpclient5:3.3.4'
-    implementation 'com.github.docker-java:docker-java-core:3.3.4'
+    implementation 'com.github.docker-java:docker-java-transport-httpclient5:3.3.6'
+    implementation 'com.github.docker-java:docker-java-core:3.3.6'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     annotationProcessor "org.springframework.boot:spring-boot-configuration-processor"
 }
 
-var outputImage = 'togetherjava.org:5001/togetherjava/jshellbackend:master' ?: 'latest'
-
 jib {
     from.image = 'eclipse-temurin:21'
     to {
-        image = outputImage
+        image = 'togetherjava.org:5001/togetherjava/jshellbackend:master' ?: 'latest'
         auth {
             username = System.getenv('ORG_REGISTRY_USER') ?: ''
             password = System.getenv('ORG_REGISTRY_PASSWORD') ?: ''
@@ -38,7 +28,7 @@ jib {
     }
     container {
         mainClass = 'org.togetherjava.jshellapi.Main'
-        setCreationTime(java.time.Instant.now().toString())
+        setCreationTime(Instant.now().toString())
     }
 }
 
@@ -46,8 +36,4 @@ shadowJar {
     archiveBaseName.set('JShellPlaygroundBackend')
     archiveClassifier.set('')
     archiveVersion.set('')
-}
-
-tasks.named('test') {
-    useJUnitPlatform()
 }

@@ -1,0 +1,20 @@
+version: "3.9"
+
+services:
+  jshell-backend-master:
+    image: "togetherjava.org:5001/togetherjava/jshellbackend:master"
+    command: ["--spring.config.location=file:///home/backend/config/application.yaml"]
+    restart: always
+    ports:
+      - 8080:8080
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./docker-config.json:/root/.docker/config.json
+      - ./config:/home/backend/config
+    networks:
+      - jshell-backend
+
+networks:
+  jshell-backend:
+    external: true
+    name: develop-bot

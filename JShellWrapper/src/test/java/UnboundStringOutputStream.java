@@ -17,10 +17,10 @@ public class UnboundStringOutputStream extends OutputStream {
 
     @Override
     public void write(int b) throws IOException {
-        if(index == bytes.length) {
+        if (index == bytes.length) {
             bytes = Arrays.copyOf(bytes, bytes.length * 2);
         }
-        bytes[index++] = (byte)b;
+        bytes[index++] = (byte) b;
     }
 
     public String readAll() {

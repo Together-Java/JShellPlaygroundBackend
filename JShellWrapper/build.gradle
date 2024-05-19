@@ -1,26 +1,30 @@
+import java.time.Instant
+
 plugins {
-    id 'application' // Debugging only
-    id 'com.google.cloud.tools.jib' version '3.3.2'
+    id 'application'
+    id 'com.google.cloud.tools.jib' version '3.4.0'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
-group 'org.togetherjava'
-version '1.0-SNAPSHOT'
+/* Application plugin is used for debugging */
+application {
+    mainClassName = 'org.togetherjava.jshell.Main'
+    run {
+        standardInput = System.in
+        systemProperty 'line.separator', '\n'
+        systemProperty 'file.encoding', 'UTF-8'
+    }
+}
 
-mainClassName = 'Main' // Debugging only
-
-run { // Debugging only
-    standardInput = System.in
+test {
     systemProperty 'line.separator', '\n'
     systemProperty 'file.encoding', 'UTF-8'
 }
 
-var outputImage = 'togetherjava.org:5001/togetherjava/jshellwrapper:master' ?: 'latest'
-
 jib {
     from.image = 'eclipse-temurin:22-alpine'
     to {
-        image = outputImage
+        image = 'togetherjava.org:5001/togetherjava/jshellwrapper:master' ?: 'latest'
         auth {
             username = System.getenv('ORG_REGISTRY_USER') ?: ''
             password = System.getenv('ORG_REGISTRY_PASSWORD') ?: ''
@@ -28,8 +32,8 @@ jib {
     }
     container {
         ports = [ "8081-8081" ]
-        mainClass = 'Main'
-        setCreationTime(java.time.Instant.now().toString())
+        mainClass = 'org.togetherjava.jshell.Main'
+        setCreationTime(Instant.now().toString())
     }
 }
 
@@ -37,21 +41,4 @@ shadowJar {
     archiveBaseName.set('JShellWrapper')
     archiveClassifier.set('')
     archiveVersion.set('')
-}
-
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.8.1'
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.8.1'
-}
-
-tasks.named('test') {
-    useJUnitPlatform()
-}
-test {
-    systemProperty 'line.separator', '\n'
-    systemProperty 'file.encoding', 'UTF-8'
 }

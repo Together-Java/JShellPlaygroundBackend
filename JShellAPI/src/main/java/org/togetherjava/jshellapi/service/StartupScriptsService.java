@@ -19,8 +19,11 @@ public class StartupScriptsService {
     private StartupScriptsService() {
         scripts = new EnumMap<>(StartupScriptId.class);
         for (StartupScriptId id : StartupScriptId.values()) {
-            try (
-                    InputStream scriptStream = Objects.requireNonNull(StartupScriptsService.class.getResourceAsStream("/jshell_startup/" + id + ".jsh"), "Couldn't load script " + id)) {
+            try (InputStream scriptStream =
+                    Objects.requireNonNull(
+                            StartupScriptsService.class.getResourceAsStream(
+                                    "/jshell_startup/" + id + ".jsh"),
+                            "Couldn't load script " + id)) {
                 String script = new String(scriptStream.readAllBytes(), StandardCharsets.UTF_8);
                 script = cleanEndLines(script);
                 scripts.put(id, script);
@@ -36,6 +39,7 @@ public class StartupScriptsService {
 
     /**
      * Returns corresponding script, or default script if id is null
+     *
      * @param id the id or the script, can be null
      * @return corresponding script, or default script if id is null
      */

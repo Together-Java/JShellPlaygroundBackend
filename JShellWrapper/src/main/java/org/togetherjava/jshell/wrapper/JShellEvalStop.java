@@ -1,3 +1,5 @@
+package org.togetherjava.jshell.wrapper;
+
 import jdk.jshell.JShell;
 
 import java.util.concurrent.atomic.AtomicBoolean;

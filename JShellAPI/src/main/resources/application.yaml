@@ -1,0 +1,31 @@
+jshellapi:
+
+  # Public API Config
+  regularSessionTimeoutSeconds: 1800
+  oneTimeSessionTimeoutSeconds: 30
+  evalTimeoutSeconds: 15
+  evalTimeoutValidationLeeway: 10
+  sysOutCharLimit: 1024
+  maxAliveSessions: 10
+
+  # Docker limits config
+  dockerMaxRamMegaBytes: 128
+  dockerCPUsUsage: 0.5
+  dockerCPUSetCPUs: 0
+
+  # Internal config
+  schedulerSessionKillScanRateSeconds: 60
+
+  # Docker service config
+  dockerResponseTimeout: 60
+  dockerConnectionTimeout: 60
+
+server:
+  error:
+    include-message: always
+
+logging:
+  level:
+    org:
+      springframework:
+        web: DEBUG
