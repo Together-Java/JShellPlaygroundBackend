@@ -6,7 +6,7 @@ services:
     command: ["--spring.config.location=file:///home/backend/config/application.yaml"]
     restart: always
     ports:
-      - 8080:8080
+      - 54321:8080
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./docker-config.json:/root/.docker/config.json
