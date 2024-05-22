@@ -1,11 +1,11 @@
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.nio.charset.StandardCharsets;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.togetherjava.jshell.wrapper.StringOutputStream;
-
-import java.nio.charset.StandardCharsets;
 
 class StringOutputStreamTest {
     static final String E_ACUTE = "\u00E9";
@@ -84,14 +84,16 @@ class StringOutputStreamTest {
 
         final String eAcuteX5AndSmileyX5 = E_ACUTE.repeat(5) + SMILEY.repeat(5);
         stream.write(
-                eAcuteX5AndSmileyX5.getBytes(StandardCharsets.UTF_8), 2 * 3, (2 * 2) + (4 * 4));
+            eAcuteX5AndSmileyX5.getBytes(StandardCharsets.UTF_8), 2 * 3, (2 * 2) + (4 * 4)
+        );
         assertResult(false, E_ACUTE.repeat(2) + SMILEY.repeat(4), stream.readAll());
 
         final String eAcuteX5AndSmileyX5AndA = E_ACUTE.repeat(5) + SMILEY.repeat(5) + 'a';
         stream.write(
-                eAcuteX5AndSmileyX5AndA.getBytes(StandardCharsets.UTF_8),
-                2 * 3,
-                (2 * 2) + (4 * 4) + 1);
+            eAcuteX5AndSmileyX5AndA.getBytes(StandardCharsets.UTF_8),
+            2 * 3,
+            (2 * 2) + (4 * 4) + 1
+        );
         assertResult(true, E_ACUTE.repeat(2) + SMILEY.repeat(4), stream.readAll());
     }
 

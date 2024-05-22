@@ -1,5 +1,7 @@
 package org.togetherjava.jshellapi.rest;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -12,8 +14,6 @@ import org.togetherjava.jshellapi.service.JShellSessionService;
 import org.togetherjava.jshellapi.service.StartupScriptId;
 import org.togetherjava.jshellapi.service.StartupScriptsService;
 
-import java.util.List;
-
 @RequestMapping("jshell")
 @RestController
 public class JShellController {
@@ -22,63 +22,72 @@ public class JShellController {
 
     @PostMapping("/eval/{id}")
     public JShellResult eval(
-            @PathVariable String id,
-            @RequestParam(required = false) StartupScriptId startupScriptId,
-            @RequestBody String code)
-            throws DockerException {
+        @PathVariable String id,
+        @RequestParam(required = false) StartupScriptId startupScriptId,
+        @RequestBody String code
+    ) throws DockerException {
         validateId(id);
         return service.session(id, startupScriptId)
-                .eval(code)
-                .orElseThrow(
-                        () ->
-                                new ResponseStatusException(
-                                        HttpStatus.CONFLICT, "An operation is already running"));
+            .eval(code)
+            .orElseThrow(
+                () -> new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "An operation is already running"
+                )
+            );
     }
 
     @PostMapping("/eval")
     public JShellResultWithId eval(
-            @RequestParam(required = false) StartupScriptId startupScriptId,
-            @RequestBody String code)
-            throws DockerException {
+        @RequestParam(required = false) StartupScriptId startupScriptId,
+        @RequestBody String code
+    ) throws DockerException {
         JShellService jShellService = service.session(startupScriptId);
         return new JShellResultWithId(
-                jShellService.id(),
-                jShellService
-                        .eval(code)
-                        .orElseThrow(
-                                () ->
-                                        new ResponseStatusException(
-                                                HttpStatus.CONFLICT,
-                                                "An operation is already running")));
+            jShellService.id(),
+            jShellService
+                .eval(code)
+                .orElseThrow(
+                    () -> new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "An operation is already running"
+                    )
+                )
+        );
     }
 
     @PostMapping("/single-eval")
     public JShellResult singleEval(
-            @RequestParam(required = false) StartupScriptId startupScriptId,
-            @RequestBody String code)
-            throws DockerException {
+        @RequestParam(required = false) StartupScriptId startupScriptId,
+        @RequestBody String code
+    ) throws DockerException {
         JShellService jShellService = service.oneTimeSession(startupScriptId);
         return jShellService
-                .eval(code)
-                .orElseThrow(
-                        () ->
-                                new ResponseStatusException(
-                                        HttpStatus.CONFLICT, "An operation is already running"));
+            .eval(code)
+            .orElseThrow(
+                () -> new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "An operation is already running"
+                )
+            );
     }
 
     @GetMapping("/snippets/{id}")
     public List<String> snippets(
-            @PathVariable String id, @RequestParam(required = false) boolean includeStartupScript)
-            throws DockerException {
+        @PathVariable String id,
+        @RequestParam(required = false) boolean includeStartupScript
+    ) throws DockerException {
         validateId(id);
         if (!service.hasSession(id))
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Id " + id + " not found");
         return service.session(id, null)
-                .snippets(includeStartupScript)
-                .orElseThrow(
-                        () ->
-                                new ResponseStatusException(
-                                        HttpStatus.CONFLICT, "An operation is already running"));
+            .snippets(includeStartupScript)
+            .orElseThrow(
+                () -> new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "An operation is already running"
+                )
+            );
     }
 
     @DeleteMapping("/{id}")
@@ -107,8 +116,9 @@ public class JShellController {
     private static void validateId(String id) throws ResponseStatusException {
         if (!id.matches("[a-zA-Z0-9][a-zA-Z0-9_.-]+")) {
             throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Id " + id + " doesn't match the regex [a-zA-Z0-9][a-zA-Z0-9_.-]+");
+                HttpStatus.BAD_REQUEST,
+                "Id " + id + " doesn't match the regex [a-zA-Z0-9][a-zA-Z0-9_.-]+"
+            );
         }
     }
 }
