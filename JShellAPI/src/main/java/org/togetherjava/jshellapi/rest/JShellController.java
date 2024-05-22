@@ -1,5 +1,14 @@
 package org.togetherjava.jshellapi.rest;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+
+import jakarta.validation.constraints.Pattern;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -18,14 +27,52 @@ import java.util.List;
 @RequestMapping("jshell")
 @RestController
 public class JShellController {
-    private JShellSessionService service;
-    private StartupScriptsService startupScriptsService;
+    private static final String ID_REGEX = "^[a-zA-Z0-9][a-zA-Z0-9_.-]+$";
+
+    @Autowired private JShellSessionService service;
+    @Autowired private StartupScriptsService startupScriptsService;
 
     @PostMapping("/eval/{id}")
-    public JShellResult eval(@PathVariable String id,
-            @RequestParam(required = false) StartupScriptId startupScriptId,
-            @RequestBody String code) throws DockerException {
-        validateId(id);
+    @Operation(
+            summary = "Evaluate code in a JShell session",
+            description =
+                    "Evaluate code in a JShell session, create a session from this id, or use an"
+                            + " existing session if this id already exists.")
+    @ApiResponse(
+            responseCode = "200",
+            content = {
+                @Content(
+                        mediaType = "application/json",
+                        schema = @Schema(implementation = JShellResult.class))
+            })
+    public JShellResult eval(
+            @Parameter(description = "id of the session, must follow the regex " + ID_REGEX)
+                    @Pattern(regexp = ID_REGEX, message = "'id' doesn't match regex " + ID_REGEX)
+                    @PathVariable
+                    String id,
+            @Parameter(description = "id of the startup script to use")
+                    @RequestParam(required = false)
+                    StartupScriptId startupScriptId,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                            content = {
+                                @Content(
+                                        mediaType = "text/plain",
+                                        examples = {
+                                            @ExampleObject(
+                                                    name = "Hello world example",
+                                                    value =
+                                                            "System.out.println(\"Hello,"
+                                                                    + " World!\");"),
+                                            @ExampleObject(
+                                                    name =
+                                                            "Hello world example with startup"
+                                                                    + " script",
+                                                    value = "println(\"Hello, World!\");")
+                                        })
+                            })
+                    @RequestBody
+                    String code)
+            throws DockerException {
         return service.session(id, startupScriptId)
             .eval(code)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT,
@@ -52,11 +99,13 @@ public class JShellController {
     }
 
     @GetMapping("/snippets/{id}")
-    public List<String> snippets(@PathVariable String id,
-            @RequestParam(required = false) boolean includeStartupScript) throws DockerException {
-        validateId(id);
-        if (!service.hasSession(id))
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Id " + id + " not found");
+    public List<String> snippets(
+            @PathVariable
+                    @Pattern(regexp = ID_REGEX, message = "'id' doesn't match regex " + ID_REGEX)
+                    String id,
+            @RequestParam(required = false) boolean includeStartupScript)
+            throws DockerException {
+        checkId(id);
         return service.session(id, null)
             .snippets(includeStartupScript)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT,
@@ -64,10 +113,12 @@ public class JShellController {
     }
 
     @DeleteMapping("/{id}")
-    public void delete(@PathVariable String id) throws DockerException {
-        validateId(id);
-        if (!service.hasSession(id))
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Id " + id + " not found");
+    public void delete(
+            @PathVariable
+                    @Pattern(regexp = ID_REGEX, message = "'id' doesn't match regex " + ID_REGEX)
+                    String id)
+            throws DockerException {
+        checkId(id);
         service.deleteSession(id);
     }
 
@@ -76,20 +127,10 @@ public class JShellController {
         return startupScriptsService.get(id);
     }
 
-    @Autowired
-    public void setService(JShellSessionService service) {
-        this.service = service;
-    }
-
-    @Autowired
-    public void setStartupScriptsService(StartupScriptsService startupScriptsService) {
-        this.startupScriptsService = startupScriptsService;
-    }
-
-    private static void validateId(String id) throws ResponseStatusException {
-        if (!id.matches("[a-zA-Z0-9][a-zA-Z0-9_.-]+")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Id " + id + " doesn't match the regex [a-zA-Z0-9][a-zA-Z0-9_.-]+");
+    private void checkId(String id) {
+        if (!id.matches(ID_REGEX)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Id " + id + " doesn't match regex " + ID_REGEX);
         }
     }
 }
