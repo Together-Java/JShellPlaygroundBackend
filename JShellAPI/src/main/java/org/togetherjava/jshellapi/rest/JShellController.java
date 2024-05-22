@@ -53,23 +53,6 @@ public class JShellController {
             @Parameter(description = "id of the startup script to use")
                     @RequestParam(required = false)
                     StartupScriptId startupScriptId,
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                            content = {
-                                @Content(
-                                        mediaType = "text/plain",
-                                        examples = {
-                                            @ExampleObject(
-                                                    name = "Hello world example",
-                                                    value =
-                                                            "System.out.println(\"Hello,"
-                                                                    + " World!\");"),
-                                            @ExampleObject(
-                                                    name =
-                                                            "Hello world example with startup"
-                                                                    + " script",
-                                                    value = "println(\"Hello, World!\");")
-                                        })
-                            })
                     @RequestBody
                     String code)
             throws DockerException {
