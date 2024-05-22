@@ -107,12 +107,8 @@ public class JShellSessionService {
     private synchronized JShellService createSession(
         SessionInfo sessionInfo
     ) throws DockerException {
-        if (
-            hasSession(
-                sessionInfo
-                    .id()
-            )
-        ) { // Just in case race condition happens just before createSession
+        // Just in case race condition happens just before createSession
+        if (hasSession(sessionInfo.id())) {
             return jshellSessions.get(sessionInfo.id());
         }
         if (jshellSessions.size() >= config.maxAliveSessions()) {
