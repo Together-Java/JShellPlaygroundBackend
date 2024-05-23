@@ -12,8 +12,7 @@ public record Config(int evalTimeoutSeconds, int sysOutCharLimit) {
     public Config {
         if (evalTimeoutSeconds <= 0)
             throw new IllegalArgumentException(
-                "Invalid evalTimeoutSeconds : " + evalTimeoutSeconds
-            );
+                    "Invalid evalTimeoutSeconds : " + evalTimeoutSeconds);
         if (sysOutCharLimit <= 0)
             throw new IllegalArgumentException("Invalid sysOutCharLimit : " + sysOutCharLimit);
     }

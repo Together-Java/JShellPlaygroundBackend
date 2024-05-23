@@ -19,12 +19,8 @@ public class DockerException extends Exception {
         super(cause);
     }
 
-    public DockerException(
-        String message,
-        Throwable cause,
-        boolean enableSuppression,
-        boolean writableStackTrace
-    ) {
+    public DockerException(String message, Throwable cause, boolean enableSuppression,
+            boolean writableStackTrace) {
         super(message, cause, enableSuppression, writableStackTrace);
     }
 }

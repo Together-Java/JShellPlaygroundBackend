@@ -1,11 +1,5 @@
 package org.togetherjava.jshellapi.service;
 
-import java.io.*;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
-
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.command.PullImageResultCallback;
@@ -18,7 +12,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
+
 import org.togetherjava.jshellapi.Config;
+
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class DockerService implements DisposableBean {
@@ -30,24 +31,24 @@ public class DockerService implements DisposableBean {
 
     public DockerService(Config config) {
         DefaultDockerClientConfig clientConfig =
-            DefaultDockerClientConfig.createDefaultConfigBuilder().build();
+                DefaultDockerClientConfig.createDefaultConfigBuilder().build();
         ApacheDockerHttpClient httpClient =
-            new ApacheDockerHttpClient.Builder()
-                .dockerHost(clientConfig.getDockerHost())
-                .sslConfig(clientConfig.getSSLConfig())
-                .responseTimeout(Duration.ofSeconds(config.dockerResponseTimeout()))
-                .connectionTimeout(Duration.ofSeconds(config.dockerConnectionTimeout()))
-                .build();
+                new ApacheDockerHttpClient.Builder().dockerHost(clientConfig.getDockerHost())
+                    .sslConfig(clientConfig.getSSLConfig())
+                    .responseTimeout(Duration.ofSeconds(config.dockerResponseTimeout()))
+                    .connectionTimeout(Duration.ofSeconds(config.dockerConnectionTimeout()))
+                    .build();
         this.client = DockerClientImpl.getInstance(clientConfig, httpClient);
 
         cleanupLeftovers(WORKER_UNIQUE_ID);
     }
 
     private void cleanupLeftovers(UUID currentId) {
-        for (Container container : client.listContainersCmd().withLabelFilter(Set.of(WORKER_LABEL))
+        for (Container container : client.listContainersCmd()
+            .withLabelFilter(Set.of(WORKER_LABEL))
             .exec()) {
             String containerHumanName =
-                container.getId() + " " + Arrays.toString(container.getNames());
+                    container.getId() + " " + Arrays.toString(container.getNames());
             LOGGER.info("Found worker container '{}'", containerHumanName);
             if (!container.getLabels().get(WORKER_LABEL).equals(currentId.toString())) {
                 LOGGER.info("Killing container '{}'", containerHumanName);
@@ -56,19 +57,15 @@ public class DockerService implements DisposableBean {
         }
     }
 
-    public String spawnContainer(
-        long maxMemoryMegs,
-        long cpus,
-        @Nullable String cpuSetCpus,
-        String name,
-        Duration evalTimeout,
-        long sysoutLimit
-    ) throws InterruptedException {
+    public String spawnContainer(long maxMemoryMegs, long cpus, @Nullable String cpuSetCpus,
+            String name, Duration evalTimeout, long sysoutLimit) throws InterruptedException {
         String imageName = "togetherjava.org:5001/togetherjava/jshellwrapper";
-        boolean presentLocally =
-            client.listImagesCmd().withFilter("reference", List.of(imageName)).exec().stream()
-                .flatMap(it -> Arrays.stream(it.getRepoTags()))
-                .anyMatch(it -> it.endsWith(":master"));
+        boolean presentLocally = client.listImagesCmd()
+            .withFilter("reference", List.of(imageName))
+            .exec()
+            .stream()
+            .flatMap(it -> Arrays.stream(it.getRepoTags()))
+            .anyMatch(it -> it.endsWith(":master"));
 
         if (!presentLocally) {
             client.pullImageCmd(imageName)
@@ -78,36 +75,30 @@ public class DockerService implements DisposableBean {
         }
 
         return client.createContainerCmd(imageName + ":master")
-            .withHostConfig(
-                HostConfig.newHostConfig()
-                    .withAutoRemove(true)
-                    .withInit(true)
-                    .withCapDrop(Capability.ALL)
-                    .withNetworkMode("none")
-                    .withPidsLimit(2000L)
-                    .withReadonlyRootfs(true)
-                    .withMemory(maxMemoryMegs * 1024 * 1024)
-                    .withCpuCount(cpus)
-                    .withCpusetCpus(cpuSetCpus)
-            )
+            .withHostConfig(HostConfig.newHostConfig()
+                .withAutoRemove(true)
+                .withInit(true)
+                .withCapDrop(Capability.ALL)
+                .withNetworkMode("none")
+                .withPidsLimit(2000L)
+                .withReadonlyRootfs(true)
+                .withMemory(maxMemoryMegs * 1024 * 1024)
+                .withCpuCount(cpus)
+                .withCpusetCpus(cpuSetCpus))
             .withStdinOpen(true)
             .withAttachStdin(true)
             .withAttachStderr(true)
             .withAttachStdout(true)
-            .withEnv(
-                "evalTimeoutSeconds=" + evalTimeout.toSeconds(),
-                "sysOutCharLimit=" + sysoutLimit
-            )
+            .withEnv("evalTimeoutSeconds=" + evalTimeout.toSeconds(),
+                    "sysOutCharLimit=" + sysoutLimit)
             .withLabels(Map.of(WORKER_LABEL, WORKER_UNIQUE_ID.toString()))
             .withName(name)
             .exec()
             .getId();
     }
 
-    public InputStream startAndAttachToContainer(
-        String containerId,
-        InputStream stdin
-    ) throws IOException {
+    public InputStream startAndAttachToContainer(String containerId, InputStream stdin)
+            throws IOException {
         PipedInputStream pipeIn = new PipedInputStream();
         PipedOutputStream pipeOut = new PipedOutputStream(pipeIn);
 
@@ -117,28 +108,23 @@ public class DockerService implements DisposableBean {
             .withStdOut(true)
             .withStdErr(true)
             .withStdIn(stdin)
-            .exec(
-                new ResultCallback.Adapter<>() {
-                    @Override
-                    public void onNext(Frame object) {
-                        try {
-                            String payloadString =
+            .exec(new ResultCallback.Adapter<>() {
+                @Override
+                public void onNext(Frame object) {
+                    try {
+                        String payloadString =
                                 new String(object.getPayload(), StandardCharsets.UTF_8);
-                            if (object.getStreamType() == StreamType.STDOUT) {
-                                pipeOut.write(object.getPayload());
-                            } else {
-                                LOGGER.warn(
-                                    "Received STDERR from container {}: {}",
-                                    containerId,
-                                    payloadString
-                                );
-                            }
-                        } catch (IOException e) {
-                            throw new UncheckedIOException(e);
+                        if (object.getStreamType() == StreamType.STDOUT) {
+                            pipeOut.write(object.getPayload());
+                        } else {
+                            LOGGER.warn("Received STDERR from container {}: {}", containerId,
+                                    payloadString);
                         }
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
                     }
                 }
-            );
+            });
 
         client.startContainerCmd(containerId).exec();
         return pipeIn;

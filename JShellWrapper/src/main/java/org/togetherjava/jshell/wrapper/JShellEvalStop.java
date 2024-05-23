@@ -1,8 +1,8 @@
 package org.togetherjava.jshell.wrapper;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import jdk.jshell.JShell;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public record JShellEvalStop(JShell shell, AtomicBoolean hasStopped) implements Runnable {
     @Override

@@ -1,5 +1,8 @@
 package org.togetherjava.jshellapi.service;
 
+import org.springframework.lang.Nullable;
+import org.springframework.stereotype.Service;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -7,9 +10,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
-
-import org.springframework.lang.Nullable;
-import org.springframework.stereotype.Service;
 
 @Service
 public class StartupScriptsService {
@@ -19,15 +19,11 @@ public class StartupScriptsService {
     private StartupScriptsService() {
         scripts = new EnumMap<>(StartupScriptId.class);
         for (StartupScriptId id : StartupScriptId.values()) {
-            try (
-                InputStream scriptStream =
+            try (InputStream scriptStream =
                     Objects.requireNonNull(
-                        StartupScriptsService.class.getResourceAsStream(
-                            "/jshell_startup/" + id + ".jsh"
-                        ),
-                        "Couldn't load script " + id
-                    )
-            ) {
+                            StartupScriptsService.class
+                                .getResourceAsStream("/jshell_startup/" + id + ".jsh"),
+                            "Couldn't load script " + id)) {
                 String script = new String(scriptStream.readAllBytes(), StandardCharsets.UTF_8);
                 script = cleanEndLines(script);
                 scripts.put(id, script);

@@ -1,5 +1,7 @@
 package org.togetherjava.jshell.wrapper;
 
+import jdk.jshell.*;
+
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.util.*;
@@ -7,13 +9,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import jdk.jshell.*;
-
 /**
- * Enter eval to evaluate code, snippets to see snippets, exit to stop. How to
- * use : at startup, one line need to be sent, startup script, first enter the
- * command, for example eval or snippets, then any needed argument. Then "OK"
- * should immediately be sent back, then after some time, the rest of the data.
+ * Enter eval to evaluate code, snippets to see snippets, exit to stop. How to use : at startup, one
+ * line need to be sent, startup script, first enter the command, for example eval or snippets, then
+ * any needed argument. Then "OK" should immediately be sent back, then after some time, the rest of
+ * the data.
  */
 public class JShellWrapper {
 
@@ -45,31 +45,25 @@ public class JShellWrapper {
 
     private void verifyStartupEval(EvalResult result) {
         JShellEvalAbortion abortion = result.abortion();
-        if (abortion == null) return;
+        if (abortion == null)
+            return;
         SnippetEvent event = result.events().get(result.events().size() - 1);
         // TODO Replace with switch
         if (abortion.cause() instanceof JShellEvalAbortionCause.TimeoutAbortionCause) {
             throw new RuntimeException("Timeout exceeded.");
-        } else if (
-            abortion.cause() instanceof JShellEvalAbortionCause.UnhandledExceptionAbortionCause
-        ) {
+        } else if (abortion
+            .cause() instanceof JShellEvalAbortionCause.UnhandledExceptionAbortionCause) {
+            throw new RuntimeException("Following startup script resulted in an exception : "
+                    + sanitize(abortion.sourceCause()), event.exception());
+        } else if (abortion
+            .cause() instanceof JShellEvalAbortionCause.CompileTimeErrorAbortionCause) {
             throw new RuntimeException(
-                "Following startup script resulted in an exception : "
-                    + sanitize(abortion.sourceCause()),
-                event.exception()
-            );
+                    "Following startup script was REJECTED : " + sanitize(abortion.sourceCause()));
+        } else if (abortion.cause() instanceof JShellEvalAbortionCause.SyntaxErrorAbortionCause) {
+            throw new RuntimeException("Following startup script has a syntax error : "
+                    + sanitize(abortion.sourceCause()));
         } else
-            if (abortion.cause() instanceof JShellEvalAbortionCause.CompileTimeErrorAbortionCause) {
-                throw new RuntimeException(
-                    "Following startup script was REJECTED : " + sanitize(abortion.sourceCause())
-                );
-            } else
-                if (abortion.cause() instanceof JShellEvalAbortionCause.SyntaxErrorAbortionCause) {
-                    throw new RuntimeException(
-                        "Following startup script has a syntax error : "
-                            + sanitize(abortion.sourceCause())
-                    );
-                } else throw new AssertionError();
+            throw new AssertionError();
     }
 
     private void ok(PrintStream processOut) {
@@ -83,32 +77,20 @@ public class JShellWrapper {
         while (!code.isEmpty()) {
             var completion = shell.sourceCodeAnalysis().analyzeCompletion(clean(code));
             if (!completion.completeness().isComplete()) {
-                abortion =
-                    new JShellEvalAbortion(
-                        code,
-                        "",
-                        new JShellEvalAbortionCause.SyntaxErrorAbortionCause()
-                    );
+                abortion = new JShellEvalAbortion(code, "",
+                        new JShellEvalAbortionCause.SyntaxErrorAbortionCause());
                 break;
             }
             List<SnippetEvent> evalEvents = shell.eval(completion.source());
             JShellEvalAbortionCause abortionCause = handleEvents(shell, evalEvents, resultEvents);
             if (abortionCause != null) {
-                abortion =
-                    new JShellEvalAbortion(
-                        completion.source(),
-                        completion.remaining(),
-                        abortionCause
-                    );
+                abortion = new JShellEvalAbortion(completion.source(), completion.remaining(),
+                        abortionCause);
                 break;
             }
             if (hasStopped.get()) {
-                abortion =
-                    new JShellEvalAbortion(
-                        completion.source(),
-                        completion.remaining(),
-                        new JShellEvalAbortionCause.TimeoutAbortionCause()
-                    );
+                abortion = new JShellEvalAbortion(completion.source(), completion.remaining(),
+                        new JShellEvalAbortionCause.TimeoutAbortionCause());
                 break;
             }
             code = completion.remaining();
@@ -116,49 +98,39 @@ public class JShellWrapper {
         return new EvalResult(resultEvents, abortion);
     }
 
-    private JShellEvalAbortionCause handleEvents(
-        JShell shell,
-        List<SnippetEvent> evalEvents,
-        List<SnippetEvent> resultEvents
-    ) {
+    private JShellEvalAbortionCause handleEvents(JShell shell, List<SnippetEvent> evalEvents,
+            List<SnippetEvent> resultEvents) {
         for (SnippetEvent event : evalEvents) {
             if (event.causeSnippet() == null) { // Only keep snippet creation events
                 resultEvents.add(event);
                 if (event.status() == Snippet.Status.REJECTED)
                     return createCompileErrorCause(shell, event);
-                if (event.exception() != null) return createExceptionCause(event);
+                if (event.exception() != null)
+                    return createExceptionCause(event);
             }
         }
         return null;
     }
 
     private JShellEvalAbortionCause.UnhandledExceptionAbortionCause createExceptionCause(
-        SnippetEvent event
-    ) {
+            SnippetEvent event) {
         if (event.exception() == null) {
             return null;
         } else if (event.exception() instanceof EvalException evalException) {
             return new JShellEvalAbortionCause.UnhandledExceptionAbortionCause(
-                evalException.getExceptionClassName(),
-                evalException.getMessage()
-            );
+                    evalException.getExceptionClassName(), evalException.getMessage());
         } else {
             return new JShellEvalAbortionCause.UnhandledExceptionAbortionCause(
-                event.exception().getClass().getName(),
-                event.exception().getMessage()
-            );
+                    event.exception().getClass().getName(), event.exception().getMessage());
         }
     }
 
     private JShellEvalAbortionCause.CompileTimeErrorAbortionCause createCompileErrorCause(
-        JShell shell,
-        SnippetEvent event
-    ) {
+            JShell shell, SnippetEvent event) {
         return new JShellEvalAbortionCause.CompileTimeErrorAbortionCause(
-            shell.diagnostics(event.snippet())
-                .map(d -> sanitize(d.getMessage(Locale.ENGLISH)))
-                .toList()
-        );
+                shell.diagnostics(event.snippet())
+                    .map(d -> sanitize(d.getMessage(Locale.ENGLISH)))
+                    .toList());
     }
 
     /**
@@ -179,24 +151,15 @@ public class JShellWrapper {
      * stdout<br>
      * </code>
      */
-    private void eval(
-        Scanner processIn,
-        PrintStream processOut,
-        Config config,
-        JShell shell,
-        StringOutputStream jshellOut
-    ) {
+    private void eval(Scanner processIn, PrintStream processOut, Config config, JShell shell,
+            StringOutputStream jshellOut) {
         AtomicBoolean hasStopped = new AtomicBoolean();
-        TimeoutWatcher watcher =
-            new TimeoutWatcher(
-                config.evalTimeoutSeconds(),
-                new JShellEvalStop(shell, hasStopped)
-            );
+        TimeoutWatcher watcher = new TimeoutWatcher(config.evalTimeoutSeconds(),
+                new JShellEvalStop(shell, hasStopped));
         int lineCount = Integer.parseInt(processIn.nextLine());
-        String code =
-            IntStream.range(0, lineCount)
-                .mapToObj(i -> processIn.nextLine())
-                .collect(Collectors.joining("\n"));
+        String code = IntStream.range(0, lineCount)
+            .mapToObj(i -> processIn.nextLine())
+            .collect(Collectors.joining("\n"));
         ok(processOut);
 
         watcher.start();
@@ -221,23 +184,20 @@ public class JShellWrapper {
             // TODO replace with switch
             if (abortion.cause() instanceof JShellEvalAbortionCause.TimeoutAbortionCause) {
                 outBuffer.add("TIMEOUT");
-            } else if (
-                abortion
-                    .cause() instanceof JShellEvalAbortionCause.UnhandledExceptionAbortionCause c
-            ) {
+            } else if (abortion
+                .cause() instanceof JShellEvalAbortionCause.UnhandledExceptionAbortionCause c) {
                 outBuffer.add("UNCAUGHT_EXCEPTION");
                 outBuffer.add(getExceptionFromCause(c));
-            } else if (
-                abortion.cause() instanceof JShellEvalAbortionCause.CompileTimeErrorAbortionCause c
-            ) {
+            } else if (abortion
+                .cause() instanceof JShellEvalAbortionCause.CompileTimeErrorAbortionCause c) {
                 outBuffer.add("COMPILE_TIME_ERROR");
                 outBuffer.add(String.valueOf(c.errors().size()));
                 outBuffer.addAll(c.errors());
-            } else if (
-                abortion.cause() instanceof JShellEvalAbortionCause.SyntaxErrorAbortionCause c
-            ) {
+            } else if (abortion
+                .cause() instanceof JShellEvalAbortionCause.SyntaxErrorAbortionCause c) {
                 outBuffer.add("SYNTAX_ERROR");
-            } else throw new AssertionError();
+            } else
+                throw new AssertionError();
             outBuffer.add(sanitize(abortion.sourceCause()));
             outBuffer.add(sanitize(abortion.remainingSource()));
         } else {
@@ -261,12 +221,11 @@ public class JShellWrapper {
      * </code>
      */
     private void writeEvalSnippetEvent(List<String> outBuffer, SnippetEvent event) {
-        String status =
-            switch (event.status()) {
-                case VALID, RECOVERABLE_DEFINED, RECOVERABLE_NOT_DEFINED, REJECTED ->
-                    event.status().name();
-                default -> throw new RuntimeException("Invalid status");
-            };
+        String status = switch (event.status()) {
+            case VALID, RECOVERABLE_DEFINED, RECOVERABLE_NOT_DEFINED, REJECTED ->
+                event.status().name();
+            default -> throw new RuntimeException("Invalid status");
+        };
         outBuffer.add(status);
         if (event.previousStatus() == Snippet.Status.NONEXISTENT) {
             outBuffer.add("ADDITION");
@@ -279,8 +238,7 @@ public class JShellWrapper {
     }
 
     private String getExceptionFromCause(
-        JShellEvalAbortionCause.UnhandledExceptionAbortionCause cause
-    ) {
+            JShellEvalAbortionCause.UnhandledExceptionAbortionCause cause) {
         return sanitize(cause.exceptionClass() + ":" + cause.exceptionMessage());
     }
 

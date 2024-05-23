@@ -5,16 +5,15 @@ public class TimeoutWatcher {
     private boolean timeout;
 
     public TimeoutWatcher(int timeoutSeconds, Runnable timeoutAction) {
-        Runnable runnable =
-            () -> {
-                try {
-                    Thread.sleep(timeoutSeconds * 1000L);
-                } catch (InterruptedException e) { // Stopped
-                    return;
-                }
-                timeout = true;
-                timeoutAction.run();
-            };
+        Runnable runnable = () -> {
+            try {
+                Thread.sleep(timeoutSeconds * 1000L);
+            } catch (InterruptedException e) { // Stopped
+                return;
+            }
+            timeout = true;
+            timeoutAction.run();
+        };
         thread = new Thread(runnable);
         thread.setName("Timeout Watcher");
     }

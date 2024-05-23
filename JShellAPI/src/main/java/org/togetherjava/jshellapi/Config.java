@@ -4,20 +4,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.lang.Nullable;
 
 @ConfigurationProperties("jshellapi")
-public record Config(
-    long regularSessionTimeoutSeconds,
-    long oneTimeSessionTimeoutSeconds,
-    long evalTimeoutSeconds,
-    long evalTimeoutValidationLeeway,
-    int sysOutCharLimit,
-    long maxAliveSessions,
-    int dockerMaxRamMegaBytes,
-    double dockerCPUsUsage,
-    @Nullable String dockerCPUSetCPUs,
-    long schedulerSessionKillScanRateSeconds,
-    long dockerResponseTimeout,
-    long dockerConnectionTimeout
-) {
+public record Config(long regularSessionTimeoutSeconds, long oneTimeSessionTimeoutSeconds,
+        long evalTimeoutSeconds, long evalTimeoutValidationLeeway, int sysOutCharLimit,
+        long maxAliveSessions, int dockerMaxRamMegaBytes, double dockerCPUsUsage,
+        @Nullable String dockerCPUSetCPUs, long schedulerSessionKillScanRateSeconds,
+        long dockerResponseTimeout, long dockerConnectionTimeout) {
     public Config {
         if (regularSessionTimeoutSeconds <= 0)
             throw new IllegalArgumentException("Invalid value " + regularSessionTimeoutSeconds);
@@ -39,8 +30,7 @@ public record Config(
             throw new IllegalArgumentException("Invalid value " + dockerCPUSetCPUs);
         if (schedulerSessionKillScanRateSeconds <= 0)
             throw new IllegalArgumentException(
-                "Invalid value " + schedulerSessionKillScanRateSeconds
-            );
+                    "Invalid value " + schedulerSessionKillScanRateSeconds);
         if (dockerResponseTimeout <= 0)
             throw new IllegalArgumentException("Invalid value " + dockerResponseTimeout);
         if (dockerConnectionTimeout <= 0)

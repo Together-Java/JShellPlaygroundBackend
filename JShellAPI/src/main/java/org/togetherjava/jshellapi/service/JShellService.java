@@ -1,18 +1,19 @@
 package org.togetherjava.jshellapi.service;
 
+import org.apache.tomcat.util.http.fileupload.util.Closeable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.lang.Nullable;
+
+import org.togetherjava.jshellapi.dto.*;
+import org.togetherjava.jshellapi.exceptions.DockerException;
+
 import java.io.*;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-
-import org.apache.tomcat.util.http.fileupload.util.Closeable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.lang.Nullable;
-import org.togetherjava.jshellapi.dto.*;
-import org.togetherjava.jshellapi.exceptions.DockerException;
 
 public class JShellService implements Closeable {
     private static final Logger LOGGER = LoggerFactory.getLogger(JShellService.class);
@@ -30,21 +31,10 @@ public class JShellService implements Closeable {
     private final DockerService dockerService;
     private final int startupScriptSize;
 
-    public JShellService(
-        DockerService dockerService,
-        JShellSessionService sessionService,
-        String id,
-        long timeout,
-        boolean renewable,
-        long evalTimeout,
-        long evalTimeoutValidationLeeway,
-        int sysOutCharLimit,
-        int maxMemory,
-        double cpus,
-        @Nullable String cpuSetCpus,
-        String startupScript
-    )
-        throws DockerException {
+    public JShellService(DockerService dockerService, JShellSessionService sessionService,
+            String id, long timeout, boolean renewable, long evalTimeout,
+            long evalTimeoutValidationLeeway, int sysOutCharLimit, int maxMemory, double cpus,
+            @Nullable String cpuSetCpus, String startupScript) throws DockerException {
         this.dockerService = dockerService;
         this.sessionService = sessionService;
         this.id = id;
@@ -58,22 +48,13 @@ public class JShellService implements Closeable {
             throw new DockerException("The session isn't completely destroyed, try again later.");
         }
         try {
-            String containerId =
-                dockerService.spawnContainer(
-                    maxMemory,
-                    (long) Math.ceil(cpus),
-                    cpuSetCpus,
-                    containerName(),
-                    Duration.ofSeconds(evalTimeout),
-                    sysOutCharLimit
-                );
+            String containerId = dockerService.spawnContainer(maxMemory, (long) Math.ceil(cpus),
+                    cpuSetCpus, containerName(), Duration.ofSeconds(evalTimeout), sysOutCharLimit);
             PipedInputStream containerInput = new PipedInputStream();
-            this.writer =
-                new BufferedWriter(
-                    new OutputStreamWriter(new PipedOutputStream(containerInput))
-                );
+            this.writer = new BufferedWriter(
+                    new OutputStreamWriter(new PipedOutputStream(containerInput)));
             InputStream containerOutput =
-                dockerService.startAndAttachToContainer(containerId, containerInput);
+                    dockerService.startAndAttachToContainer(containerId, containerInput);
             reader = new BufferedReader(new InputStreamReader(containerOutput));
             writer.write(sanitize(startupScript));
             writer.newLine();
@@ -99,7 +80,8 @@ public class JShellService implements Closeable {
         }
         updateLastTimeout();
         sessionService.scheduleEvalTimeoutValidation(id, evalTimeout + evalTimeoutValidationLeeway);
-        if (!code.endsWith("\n")) code += '\n';
+        if (!code.endsWith("\n"))
+            code += '\n';
         try {
             writer.write("eval");
             writer.newLine();
@@ -124,18 +106,10 @@ public class JShellService implements Closeable {
         final int snippetsCount = Integer.parseInt(reader.readLine());
         List<JShellSnippetResult> snippetResults = new ArrayList<>();
         for (int i = 0; i < snippetsCount; i++) {
-            SnippetStatus status =
-                Utils.nameOrElseThrow(
-                    SnippetStatus.class,
-                    reader.readLine(),
-                    name -> new DockerException(name + " isn't an enum constant")
-                );
-            SnippetType type =
-                Utils.nameOrElseThrow(
-                    SnippetType.class,
-                    reader.readLine(),
-                    name -> new DockerException(name + " isn't an enum constant")
-                );
+            SnippetStatus status = Utils.nameOrElseThrow(SnippetStatus.class, reader.readLine(),
+                    name -> new DockerException(name + " isn't an enum constant"));
+            SnippetType type = Utils.nameOrElseThrow(SnippetType.class, reader.readLine(),
+                    name -> new DockerException(name + " isn't an enum constant"));
             int snippetId = Integer.parseInt(reader.readLine());
             String source = cleanCode(reader.readLine());
             String result = reader.readLine().transform(r -> r.equals("NONE") ? null : r);
@@ -144,31 +118,25 @@ public class JShellService implements Closeable {
         JShellEvalAbortion abortion = null;
         String rawAbortionCause = reader.readLine();
         if (!rawAbortionCause.isEmpty()) {
-            JShellEvalAbortionCause abortionCause =
-                switch (rawAbortionCause) {
-                    case "TIMEOUT" -> new JShellEvalAbortionCause.TimeoutAbortionCause();
-                    case "UNCAUGHT_EXCEPTION" -> {
-                        String[] split = reader.readLine().split(":");
-                        yield new JShellEvalAbortionCause.UnhandledExceptionAbortionCause(
-                            split[0],
-                            split[1]
-                        );
+            JShellEvalAbortionCause abortionCause = switch (rawAbortionCause) {
+                case "TIMEOUT" -> new JShellEvalAbortionCause.TimeoutAbortionCause();
+                case "UNCAUGHT_EXCEPTION" -> {
+                    String[] split = reader.readLine().split(":");
+                    yield new JShellEvalAbortionCause.UnhandledExceptionAbortionCause(split[0],
+                            split[1]);
+                }
+                case "COMPILE_TIME_ERROR" -> {
+                    int errorCount = Integer.parseInt(reader.readLine());
+                    List<String> errors = new ArrayList<>();
+                    for (int i = 0; i < errorCount; i++) {
+                        errors.add(desanitize(reader.readLine()));
                     }
-                    case "COMPILE_TIME_ERROR" -> {
-                        int errorCount = Integer.parseInt(reader.readLine());
-                        List<String> errors = new ArrayList<>();
-                        for (int i = 0; i < errorCount; i++) {
-                            errors.add(desanitize(reader.readLine()));
-                        }
-                        yield new JShellEvalAbortionCause.CompileTimeErrorAbortionCause(errors);
-                    }
-                    case "SYNTAX_ERROR" ->
-                        new JShellEvalAbortionCause.SyntaxErrorAbortionCause();
-                    default ->
-                        throw new DockerException(
-                            "Abortion cause " + rawAbortionCause + " doesn't exist"
-                        );
-                };
+                    yield new JShellEvalAbortionCause.CompileTimeErrorAbortionCause(errors);
+                }
+                case "SYNTAX_ERROR" -> new JShellEvalAbortionCause.SyntaxErrorAbortionCause();
+                default -> throw new DockerException(
+                        "Abortion cause " + rawAbortionCause + " doesn't exist");
+            };
             String causeSource = cleanCode(reader.readLine());
             String remainingSource = cleanCode(reader.readLine());
             abortion = new JShellEvalAbortion(causeSource, remainingSource, abortionCause);
@@ -197,11 +165,8 @@ public class JShellService implements Closeable {
             while (!(snippet = reader.readLine()).isEmpty()) {
                 snippets.add(cleanCode(snippet));
             }
-            return Optional.of(
-                includeStartupScript
-                    ? snippets
-                    : snippets.subList(startupScriptSize, snippets.size())
-            );
+            return Optional.of(includeStartupScript ? snippets
+                    : snippets.subList(startupScriptSize, snippets.size()));
         } catch (IOException ex) {
             LOGGER.warn("Unexpected error.", ex);
             close();
@@ -217,9 +182,8 @@ public class JShellService implements Closeable {
 
     public boolean isInvalidEvalTimeout() {
         return doingOperation
-            && lastTimeoutUpdate
-                .plusSeconds(evalTimeout + evalTimeoutValidationLeeway)
-                .isBefore(Instant.now());
+                && lastTimeoutUpdate.plusSeconds(evalTimeout + evalTimeoutValidationLeeway)
+                    .isBefore(Instant.now());
     }
 
     public boolean shouldDie() {
@@ -289,8 +253,7 @@ public class JShellService implements Closeable {
                     close();
                 } finally {
                     throw new DockerException(
-                        "Container of session " + id + " returned invalid info : " + OK
-                    );
+                            "Container of session " + id + " returned invalid info : " + OK);
                 }
             }
         } catch (IOException ex) {
@@ -300,7 +263,8 @@ public class JShellService implements Closeable {
     }
 
     private synchronized boolean tryStartOperation() {
-        if (doingOperation) return false;
+        if (doingOperation)
+            return false;
         doingOperation = true;
         return true;
     }
