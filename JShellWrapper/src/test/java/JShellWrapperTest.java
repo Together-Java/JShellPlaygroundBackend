@@ -1,12 +1,13 @@
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+
 import org.togetherjava.jshell.wrapper.Config;
 import org.togetherjava.jshell.wrapper.JShellWrapper;
 
 import java.io.InputStream;
 import java.io.PrintStream;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class JShellWrapperTest {
     static Config config;
@@ -28,12 +29,10 @@ class JShellWrapperTest {
 
     @Test
     void testHelloWorld() {
-        evalTest(
-                """
-            eval
-            1
-            System.out.println("Hello world!")""",
-                """
+        evalTest("""
+                eval
+                1
+                System.out.println("Hello world!")""", """
                 OK
                 0
                 OK
@@ -50,15 +49,13 @@ class JShellWrapperTest {
 
     @Test
     void testMultilinesInput() {
-        evalTest(
-                """
-            eval
-            4
-            for(int i = 0; i < 10; i++) {
-                System.out.print(i);
-            }
-            System.out.println();""",
-                """
+        evalTest("""
+                eval
+                4
+                for(int i = 0; i < 10; i++) {
+                    System.out.print(i);
+                }
+                System.out.println();""", """
                 OK
                 0
                 OK
@@ -80,12 +77,10 @@ class JShellWrapperTest {
 
     @Test
     void testStdoutOverflow() {
-        evalTest(
-                """
-            eval
-            1
-            for(int i = 0; i < 1024; i++) System.out.print(0)""",
-                """
+        evalTest("""
+                eval
+                1
+                for(int i = 0; i < 1024; i++) System.out.print(0)""", """
                 OK
                 0
                 OK
@@ -97,14 +92,11 @@ class JShellWrapperTest {
 
 
                 false
-                %s"""
-                        .formatted("0".repeat(1024)));
-        evalTest(
-                """
-            eval
-            1
-            for(int i = 0; i <= 1024; i++) System.out.print(0)""",
-                """
+                %s""".formatted("0".repeat(1024)));
+        evalTest("""
+                eval
+                1
+                for(int i = 0; i <= 1024; i++) System.out.print(0)""", """
                 OK
                 0
                 OK
@@ -116,19 +108,16 @@ class JShellWrapperTest {
 
 
                 true
-                %s"""
-                        .formatted("0".repeat(1024)));
+                %s""".formatted("0".repeat(1024)));
     }
 
     @Test
     void testModificationAndMultiplesSnippets() {
-        evalTest(
-                """
-            eval
-            2
-            int i = 0;
-            int i = 2;""",
-                """
+        evalTest("""
+                eval
+                2
+                int i = 0;
+                int i = 2;""", """
                 OK
                 0
                 OK
@@ -150,12 +139,10 @@ class JShellWrapperTest {
 
     @Test
     void testUseId() {
-        evalTest(
-                """
-            eval
-            1
-            System.out.println("Hello world!")""",
-                """
+        evalTest("""
+                eval
+                1
+                System.out.println("Hello world!")""", """
                 OK
                 0
                 OK
@@ -172,12 +159,10 @@ class JShellWrapperTest {
 
     @Test
     void testTimeout() {
-        evalTest(
-                """
-            eval
-            1
-            while(true);""",
-                """
+        evalTest("""
+                eval
+                1
+                while(true);""", """
                 OK
                 0
                 OK
@@ -196,12 +181,10 @@ class JShellWrapperTest {
 
     @Test
     void testUncaughtException() { // TODO other kind of exception, not in EvalException
-        evalTest(
-                """
-            eval
-            1
-            throw new RuntimeException("Some message : fail")""",
-                """
+        evalTest("""
+                eval
+                1
+                throw new RuntimeException("Some message : fail")""", """
                 OK
                 0
                 OK
@@ -221,12 +204,10 @@ class JShellWrapperTest {
 
     @Test
     void testRejected() {
-        evalTest(
-                """
-            eval
-            1
-            print""",
-                """
+        evalTest("""
+                eval
+                1
+                print""", """
                 OK
                 0
                 OK
@@ -248,12 +229,10 @@ class JShellWrapperTest {
     @Test
     void testSyntaxError() {
         // DEFINITELY_INCOMPLETE
-        evalTest(
-                """
-            eval
-            1
-            print(""",
-                """
+        evalTest("""
+                eval
+                1
+                print(""", """
                 OK
                 0
                 OK
@@ -264,12 +243,10 @@ class JShellWrapperTest {
                 false
                 """);
         // CONSIDERED_INCOMPLETE
-        evalTest(
-                """
-            eval
-            1
-            while(true)""",
-                """
+        evalTest("""
+                eval
+                1
+                while(true)""", """
                 OK
                 0
                 OK
@@ -279,12 +256,10 @@ class JShellWrapperTest {
 
                 false
                 """);
-        evalTest(
-                """
-            eval
-            1
-            for(int i = 0; i < 10; i++)""",
-                """
+        evalTest("""
+                eval
+                1
+                for(int i = 0; i < 10; i++)""", """
                 OK
                 0
                 OK
@@ -298,14 +273,12 @@ class JShellWrapperTest {
 
     @Test
     void testRejectedAndMultiples() {
-        evalTest(
-                """
-            eval
-            3
-            int i = 0;
-            print;
-            System.out.println(i);""",
-                """
+        evalTest("""
+                eval
+                3
+                int i = 0;
+                print;
+                System.out.println(i);""", """
                 OK
                 0
                 OK
@@ -331,14 +304,12 @@ class JShellWrapperTest {
 
     @Test
     void testMultilinesAndHardcodedNewLineInString() {
-        evalTest(
-                """
-            eval
-            3
-            {
-                System.out.println("\\n");
-            }""",
-                """
+        evalTest("""
+                eval
+                3
+                {
+                    System.out.println("\\n");
+                }""", """
                 OK
                 0
                 OK

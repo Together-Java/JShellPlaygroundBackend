@@ -54,11 +54,10 @@ public class StringOutputStream extends OutputStream {
     }
 
     public Result readAll() {
-        if (index > bytes.length) throw new IllegalStateException(); // Should never happen
-        String s =
-                new String(
-                        index == bytes.length ? bytes : Arrays.copyOf(bytes, index),
-                        StandardCharsets.UTF_8);
+        if (index > bytes.length)
+            throw new IllegalStateException(); // Should never happen
+        String s = new String(index == bytes.length ? bytes : Arrays.copyOf(bytes, index),
+                StandardCharsets.UTF_8);
         index = 0;
         if (byteOverflow) {
             byteOverflow = false;
@@ -66,7 +65,8 @@ public class StringOutputStream extends OutputStream {
                     s.charAt(s.length() - 1) == UNKNOWN_CHAR ? s.substring(0, s.length() - 1) : s,
                     true);
         }
-        if (s.length() > maxSize) return new Result(s.substring(0, maxSize), true);
+        if (s.length() > maxSize)
+            return new Result(s.substring(0, maxSize), true);
         return new Result(s, false);
     }
 
@@ -75,5 +75,6 @@ public class StringOutputStream extends OutputStream {
         bytes = null;
     }
 
-    public record Result(String content, boolean isOverflow) {}
+    public record Result(String content, boolean isOverflow) {
+    }
 }

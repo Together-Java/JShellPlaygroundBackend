@@ -16,16 +16,15 @@ subprojects {
 
     spotless {
         java {
-            importOrder()
-            googleJavaFormat()
-                    .aosp()
-                    .reflowLongStrings()
-                    .formatJavadoc(true)
-                    .reorderImports(true)
-                    .groupArtifact('com.google.googlejavaformat:google-java-format')
-            trimTrailingWhitespace()
-            indentWithSpaces()
+            targetExclude("build/**")
             endWithNewline()
+            removeUnusedImports()
+            // empty string '' covers all imports that aren't explicitly specified,
+            // we use it as catch-all for external dependencies like JDA
+            // '\\#` is prefix for static imports
+            importOrder('','org.togetherjava', 'javax', 'java', '\\#')
+            // TODO: pinning version because of spotless error https://github.com/diffplug/spotless/issues/1992
+            eclipse("4.31").configFile("${rootProject.rootDir}/spotless.xml")
         }
     }
 

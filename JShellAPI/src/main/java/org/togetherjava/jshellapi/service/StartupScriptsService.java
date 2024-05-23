@@ -21,8 +21,8 @@ public class StartupScriptsService {
         for (StartupScriptId id : StartupScriptId.values()) {
             try (InputStream scriptStream =
                     Objects.requireNonNull(
-                            StartupScriptsService.class.getResourceAsStream(
-                                    "/jshell_startup/" + id + ".jsh"),
+                            StartupScriptsService.class
+                                .getResourceAsStream("/jshell_startup/" + id + ".jsh"),
                             "Couldn't load script " + id)) {
                 String script = new String(scriptStream.readAllBytes(), StandardCharsets.UTF_8);
                 script = cleanEndLines(script);
