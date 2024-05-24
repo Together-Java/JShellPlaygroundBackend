@@ -43,7 +43,8 @@ public class JShellController {
             @PathVariable String id,
             @Parameter(description = "id of the startup script to use")
             @RequestParam(required = false) StartupScriptId startupScriptId,
-            @RequestBody String code) throws DockerException {
+            @Parameter(description = "Java code to evaluate") @RequestBody String code)
+            throws DockerException {
         return service.session(id, startupScriptId)
             .eval(code)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT,
@@ -51,8 +52,15 @@ public class JShellController {
     }
 
     @PostMapping("/eval")
-    public JShellResultWithId eval(@RequestParam(required = false) StartupScriptId startupScriptId,
-            @RequestBody String code) throws DockerException {
+    @Operation(summary = "Evaluate code in a JShell session",
+            description = "Evaluate code in a JShell session, creates a new session each time, with a random id")
+    @ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json",
+            schema = @Schema(implementation = JShellResultWithId.class))})
+    public JShellResultWithId eval(
+            @Parameter(description = "id of the startup script to use")
+            @RequestParam(required = false) StartupScriptId startupScriptId,
+            @Parameter(description = "Java code to evaluate") @RequestBody String code)
+            throws DockerException {
         JShellService jShellService = service.session(startupScriptId);
         return new JShellResultWithId(jShellService.id(),
                 jShellService.eval(code)
@@ -61,8 +69,15 @@ public class JShellController {
     }
 
     @PostMapping("/single-eval")
-    public JShellResult singleEval(@RequestParam(required = false) StartupScriptId startupScriptId,
-            @RequestBody String code) throws DockerException {
+    @Operation(summary = "Evaluate code in JShell",
+            description = "Evaluate code in a JShell session, creates a session that can only be used once, and has lower timeout")
+    @ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json",
+            schema = @Schema(implementation = JShellResult.class))})
+    public JShellResult singleEval(
+            @Parameter(description = "id of the startup script to use")
+            @RequestParam(required = false) StartupScriptId startupScriptId,
+            @Parameter(description = "Java code to evaluate") @RequestBody String code)
+            throws DockerException {
         JShellService jShellService = service.oneTimeSession(startupScriptId);
         return jShellService.eval(code)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT,
@@ -70,11 +85,15 @@ public class JShellController {
     }
 
     @GetMapping("/snippets/{id}")
+    @Operation(summary = "Retreive all snippets from a JShell session")
+    @ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json",
+            schema = @Schema(implementation = List.class))})
     public List<String> snippets(
-            @PathVariable
-            @Pattern(regexp = ID_REGEX, message = "'id' doesn't match regex " + ID_REGEX) String id,
-            @RequestParam(required = false) boolean includeStartupScript) throws DockerException {
-        checkId(id);
+            @Parameter(description = "id of the session, must follow the regex " + ID_REGEX)
+            @Pattern(regexp = ID_REGEX, message = "'id' doesn't match regex " + ID_REGEX)
+            @PathVariable String id, @RequestParam(required = false) boolean includeStartupScript)
+            throws DockerException {
+        checkIdExists(id);
         return service.session(id, null)
             .snippets(includeStartupScript)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT,
@@ -82,20 +101,23 @@ public class JShellController {
     }
 
     @DeleteMapping("/{id}")
+    @Operation(summary = "Delete a JShell session")
     public void delete(
-            @PathVariable
-            @Pattern(regexp = ID_REGEX, message = "'id' doesn't match regex " + ID_REGEX) String id)
-            throws DockerException {
-        checkId(id);
+            @Parameter(description = "id of the session, must follow the regex " + ID_REGEX)
+            @Pattern(regexp = ID_REGEX, message = "'id' doesn't match regex " + ID_REGEX)
+            @PathVariable String id) throws DockerException {
+        checkIdExists(id);
         service.deleteSession(id);
     }
 
     @GetMapping("/startup_script/{id}")
-    public String startupScript(@PathVariable StartupScriptId id) {
+    @Operation(summary = "Get a startup script")
+    public String startupScript(@Parameter(description = "id of the startup script to fetch")
+    @PathVariable StartupScriptId id) {
         return startupScriptsService.get(id);
     }
 
-    private void checkId(String id) {
+    private void checkIdExists(String id) {
         if (!id.matches(ID_REGEX)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Id " + id + " doesn't match regex " + ID_REGEX);
