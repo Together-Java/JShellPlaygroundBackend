@@ -5,9 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-
 import jakarta.validation.constraints.Pattern;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -28,32 +26,24 @@ import java.util.List;
 public class JShellController {
     private static final String ID_REGEX = "^[a-zA-Z0-9][a-zA-Z0-9_.-]+$";
 
-    @Autowired private JShellSessionService service;
-    @Autowired private StartupScriptsService startupScriptsService;
+    @Autowired
+    private JShellSessionService service;
+    @Autowired
+    private StartupScriptsService startupScriptsService;
 
     @PostMapping("/eval/{id}")
-    @Operation(
-            summary = "Evaluate code in a JShell session",
-            description =
-                    "Evaluate code in a JShell session, create a session from this id, or use an"
-                            + " existing session if this id already exists.")
-    @ApiResponse(
-            responseCode = "200",
-            content = {
-                @Content(
-                        mediaType = "application/json",
-                        schema = @Schema(implementation = JShellResult.class))
-            })
+    @Operation(summary = "Evaluate code in a JShell session",
+            description = "Evaluate code in a JShell session, create a session from this id, or use an"
+                    + " existing session if this id already exists.")
+    @ApiResponse(responseCode = "200", content = {@Content(mediaType = "application/json",
+            schema = @Schema(implementation = JShellResult.class))})
     public JShellResult eval(
             @Parameter(description = "id of the session, must follow the regex " + ID_REGEX)
-                    @Pattern(regexp = ID_REGEX, message = "'id' doesn't match regex " + ID_REGEX)
-                    @PathVariable
-                    String id,
+            @Pattern(regexp = ID_REGEX, message = "'id' doesn't match regex " + ID_REGEX)
+            @PathVariable String id,
             @Parameter(description = "id of the startup script to use")
-                    @RequestParam(required = false)
-                    StartupScriptId startupScriptId,
-            @RequestBody String code)
-            throws DockerException {
+            @RequestParam(required = false) StartupScriptId startupScriptId,
+            @RequestBody String code) throws DockerException {
         return service.session(id, startupScriptId)
             .eval(code)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT,
@@ -82,10 +72,8 @@ public class JShellController {
     @GetMapping("/snippets/{id}")
     public List<String> snippets(
             @PathVariable
-                    @Pattern(regexp = ID_REGEX, message = "'id' doesn't match regex " + ID_REGEX)
-                    String id,
-            @RequestParam(required = false) boolean includeStartupScript)
-            throws DockerException {
+            @Pattern(regexp = ID_REGEX, message = "'id' doesn't match regex " + ID_REGEX) String id,
+            @RequestParam(required = false) boolean includeStartupScript) throws DockerException {
         checkId(id);
         return service.session(id, null)
             .snippets(includeStartupScript)
@@ -96,8 +84,7 @@ public class JShellController {
     @DeleteMapping("/{id}")
     public void delete(
             @PathVariable
-                    @Pattern(regexp = ID_REGEX, message = "'id' doesn't match regex " + ID_REGEX)
-                    String id)
+            @Pattern(regexp = ID_REGEX, message = "'id' doesn't match regex " + ID_REGEX) String id)
             throws DockerException {
         checkId(id);
         service.deleteSession(id);
@@ -110,8 +97,8 @@ public class JShellController {
 
     private void checkId(String id) {
         if (!id.matches(ID_REGEX)) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "Id " + id + " doesn't match regex " + ID_REGEX);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Id " + id + " doesn't match regex " + ID_REGEX);
         }
     }
 }
