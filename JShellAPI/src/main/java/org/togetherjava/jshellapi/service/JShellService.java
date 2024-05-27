@@ -167,7 +167,7 @@ public class JShellService implements Closeable {
             }
             return Optional.of(includeStartupScript ? snippets
                     : snippets.subList(startupScriptSize, snippets.size()));
-        } catch (IOException ex) {
+        } catch (Exception ex) {
             LOGGER.warn("Unexpected error.", ex);
             close();
             throw new DockerException(ex);
@@ -234,30 +234,15 @@ public class JShellService implements Closeable {
     private void checkContainerOK() throws DockerException {
         try {
             if (dockerService.isDead(containerName())) {
-                try {
-                    close();
-                } finally {
-                    throw new DockerException("Container of session " + id + " is dead");
-                }
+                throw new IOException("Container of session " + id + " is dead");
             }
-            String OK = reader.readLine();
-            if (OK == null) {
-                try {
-                    close();
-                } finally {
-                    throw new DockerException("Container of session " + id + " is dead");
-                }
-            }
-            if (!OK.equals("OK")) {
-                try {
-                    close();
-                } finally {
-                    throw new DockerException(
-                            "Container of session " + id + " returned invalid info : " + OK);
-                }
+            String ok = reader.readLine();
+            if (ok == null || !ok.equals("OK")) {
+                throw new IOException(
+                        "Container of session " + id + " is dead because status was " + ok);
             }
         } catch (IOException ex) {
-            LOGGER.warn("Unexpected error.", ex);
+            close();
             throw new DockerException(ex);
         }
     }
