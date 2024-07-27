@@ -28,6 +28,7 @@ public class JShellSessionService {
     private void initScheduler() {
         scheduler = Executors.newSingleThreadScheduledExecutor();
         scheduler.scheduleAtFixedRate(() -> {
+            LOGGER.info("Scheduler heartbeat: started.");
             jshellSessions.keySet()
                 .stream()
                 .filter(id -> jshellSessions.get(id).isClosed())
@@ -36,6 +37,7 @@ public class JShellSessionService {
                 .stream()
                 .filter(id -> jshellSessions.get(id).shouldDie())
                 .toList();
+            LOGGER.info("Scheduler heartbeat: sessions ready to die: {}", toDie);
             for (String id : toDie) {
                 try {
                     deleteSession(id);
@@ -49,8 +51,10 @@ public class JShellSessionService {
 
     void notifyDeath(String id) {
         JShellService shellService = jshellSessions.remove(id);
-        if (shellService == null)
+        if (shellService == null) {
+            LOGGER.debug("Notify death on already removed session {}.", id);
             return;
+        }
         if (!shellService.isClosed()) {
             LOGGER.error("JShell Service isn't dead when it should for id {}.", id);
         }
