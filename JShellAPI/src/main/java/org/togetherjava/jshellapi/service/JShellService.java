@@ -206,6 +206,7 @@ public class JShellService implements Closeable {
 
     @Override
     public void close() {
+        LOGGER.debug("Close called for session {}.", id);
         try {
             dockerService.killContainerByName(containerName());
             try {

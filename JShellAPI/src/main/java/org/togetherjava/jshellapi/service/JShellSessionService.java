@@ -28,6 +28,7 @@ public class JShellSessionService {
     private void initScheduler() {
         scheduler = Executors.newSingleThreadScheduledExecutor();
         scheduler.scheduleAtFixedRate(() -> {
+            LOGGER.info("Scheduler heartbeat: started.");
             jshellSessions.keySet()
                 .stream()
                 .filter(id -> jshellSessions.get(id).isClosed())
@@ -36,6 +37,7 @@ public class JShellSessionService {
                 .stream()
                 .filter(id -> jshellSessions.get(id).shouldDie())
                 .toList();
+            LOGGER.info("Scheduler heartbeat: sessions ready to die: {}", toDie);
             for (String id : toDie) {
                 try {
                     deleteSession(id);
@@ -81,6 +83,7 @@ public class JShellSessionService {
     }
 
     public void deleteSession(String id) throws DockerException {
+        LOGGER.debug("Soft delete called for session {}.", id);
         JShellService service = jshellSessions.remove(id);
         service.stop();
         scheduler.schedule(service::close, 500, TimeUnit.MILLISECONDS);
