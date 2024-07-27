@@ -86,8 +86,11 @@ public class JShellSessionService {
 
     public void deleteSession(String id) throws DockerException {
         JShellService service = jshellSessions.remove(id);
-        service.stop();
-        scheduler.schedule(service::close, 500, TimeUnit.MILLISECONDS);
+        try {
+            service.stop();
+        } finally {
+            scheduler.schedule(service::close, 500, TimeUnit.MILLISECONDS);
+        }
     }
 
     private synchronized JShellService createSession(SessionInfo sessionInfo)
