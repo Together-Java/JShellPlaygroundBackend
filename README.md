@@ -29,10 +29,21 @@ JShellAPI is a REST API, and whenever some code is received, it will create a se
 # How to build JShellAPI in and run it in Docker
 - Launch Docker
 - Run `jibDockerBuild` to create the image
+- Create a folder outside the project
+- `cd` to this folder
+- Copy `docker-compose.yaml` inside it
 - Optionally, create `config/application.yaml` where you can put custom config (see the actual [application.yaml](JShellAPI/src/main/resources/application.yaml))
-- If you don't create it, delete the `command: ["--spring.config.location=file:///home/backend/config/application.yaml"]` line in the `docker-compose.yaml`
+* * If you don't create it, delete the `command: ["--spring.config.location=file:///home/backend/config/application.yaml"]` line in the `docker-compose.yaml`
 - Run `docker compose build` or `docker-compose build` in the folder, depending on your version of Docker.
 - Run `docker compose start` or `docker-compose start` in the folder, depending on your version of Docker.
+- Note that some folders or files may be created automatically inside this folder
+- File tree representation:
+```
+-folder outside the project
+    -docker-compose.yaml
+    -config (optionnal)
+        -application.yaml
+```
 
 ## How to use JShellApi ?
 See [JShellAPI README](JShellAPI/README.MD)
