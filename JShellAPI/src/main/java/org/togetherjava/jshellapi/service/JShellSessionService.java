@@ -85,7 +85,6 @@ public class JShellSessionService {
     }
 
     public void deleteSession(String id) throws DockerException {
-        LOGGER.debug("Soft delete called for session {}.", id);
         JShellService service = jshellSessions.remove(id);
         service.stop();
         scheduler.schedule(service::close, 500, TimeUnit.MILLISECONDS);
