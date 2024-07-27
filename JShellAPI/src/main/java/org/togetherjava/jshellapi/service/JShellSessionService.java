@@ -51,8 +51,10 @@ public class JShellSessionService {
 
     void notifyDeath(String id) {
         JShellService shellService = jshellSessions.remove(id);
-        if (shellService == null)
+        if (shellService == null) {
+            LOGGER.debug("Notify death on already removed session {}.", id);
             return;
+        }
         if (!shellService.isClosed()) {
             LOGGER.error("JShell Service isn't dead when it should for id {}.", id);
         }
