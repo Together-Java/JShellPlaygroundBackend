@@ -134,7 +134,7 @@ public class DockerService implements DisposableBean {
         LOGGER.debug("Fetching container to kill {}.", name);
         List<Container> containers = client.listContainersCmd().withNameFilter(Set.of(name)).exec();
         LOGGER.debug("Number of containers to kill: {} for name {}.", containers.size(), name);
-        if(containers.size() != 1) {
+        if (containers.size() != 1) {
             LOGGER.error("There is more than 1 container for name {}.", name);
         }
         for (Container container : containers) {
