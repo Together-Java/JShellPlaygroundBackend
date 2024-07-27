@@ -57,6 +57,7 @@ public class JShellSessionService {
         }
         if (!shellService.isClosed()) {
             LOGGER.error("JShell Service isn't dead when it should for id {}.", id);
+            return;
         }
         LOGGER.info("Session {} died.", id);
     }
