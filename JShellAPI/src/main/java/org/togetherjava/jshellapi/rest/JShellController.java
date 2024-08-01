@@ -7,6 +7,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import org.togetherjava.jshellapi.dto.JShellResult;
 import org.togetherjava.jshellapi.dto.JShellResultWithId;
+import org.togetherjava.jshellapi.dto.sessionstats.SessionStats;
 import org.togetherjava.jshellapi.exceptions.DockerException;
 import org.togetherjava.jshellapi.service.JShellService;
 import org.togetherjava.jshellapi.service.JShellSessionService;
@@ -69,6 +70,11 @@ public class JShellController {
         if (!service.hasSession(id))
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Id " + id + " not found");
         service.deleteSession(id);
+    }
+
+    @GetMapping("sessions")
+    public List<SessionStats> sessions() {
+        return service.fetchStats();
     }
 
     @GetMapping("/startup_script/{id}")

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import org.togetherjava.jshellapi.Config;
+import org.togetherjava.jshellapi.dto.sessionstats.SessionStats;
 import org.togetherjava.jshellapi.exceptions.DockerException;
 
 import java.util.*;
@@ -131,6 +132,13 @@ public class JShellSessionService {
                 service.close();
             }
         }, timeSeconds, TimeUnit.SECONDS);
+    }
+
+    public List<SessionStats> fetchStats() {
+        return jshellSessions.values().stream()
+                .map(JShellService::fetchSessionInfo)
+                .sorted(Comparator.comparingLong(SessionStats::timeSinceCreation).reversed())
+                .toList();
     }
 
     @Autowired

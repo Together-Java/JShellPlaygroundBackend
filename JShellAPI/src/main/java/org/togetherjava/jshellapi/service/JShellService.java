@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.lang.Nullable;
 
 import org.togetherjava.jshellapi.dto.*;
+import org.togetherjava.jshellapi.dto.sessionstats.SessionStats;
 import org.togetherjava.jshellapi.exceptions.DockerException;
 
 import java.io.*;
@@ -21,6 +22,8 @@ public class JShellService implements Closeable {
     private final String id;
     private final BufferedWriter writer;
     private final BufferedReader reader;
+    private final Instant creationTime;
+    private long totalEvalTime;
 
     private Instant lastTimeoutUpdate;
     private final long timeout;
@@ -66,6 +69,7 @@ public class JShellService implements Closeable {
             throw new DockerException("Creation of the session failed.", e);
         }
         this.doingOperation = false;
+        this.creationTime = Instant.now();
     }
 
     public Optional<JShellResult> eval(String code) throws DockerException {
@@ -80,6 +84,7 @@ public class JShellService implements Closeable {
         }
         updateLastTimeout();
         sessionService.scheduleEvalTimeoutValidation(id, evalTimeout + evalTimeoutValidationLeeway);
+        Instant start = Instant.now();
         if (!code.endsWith("\n"))
             code += '\n';
         try {
@@ -98,6 +103,7 @@ public class JShellService implements Closeable {
             close();
             throw new DockerException(ex);
         } finally {
+            totalEvalTime += Duration.between(start, Instant.now()).getSeconds();
             stopOperation();
         }
     }
@@ -202,6 +208,18 @@ public class JShellService implements Closeable {
 
     public String id() {
         return id;
+    }
+
+    public SessionStats fetchSessionInfo() {
+        long timeSinceCreation = Duration.between(creationTime, Instant.now()).getSeconds();
+        long timeUntilExpiration =
+                Duration.between(Instant.now(), lastTimeoutUpdate.plusSeconds(timeout))
+                        .getSeconds();
+        if (timeUntilExpiration < 0) {
+            timeUntilExpiration = 0;
+        }
+        return new SessionStats(
+                id, timeSinceCreation, timeUntilExpiration, totalEvalTime, doingOperation);
     }
 
     @Override
