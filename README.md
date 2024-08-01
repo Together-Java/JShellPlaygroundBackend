@@ -14,6 +14,8 @@ There are two projects, JShellAPI and JShellWrapper.
 
 JShellAPI is a REST API, where whenever some code is received, it will create a session, by creating a docker container, which will run JShellWrapper inside and then execute the given code.
 
+![JShellAPI diagram](https://github.com/user-attachments/assets/c566b8c0-cf81-4a56-8a0a-5715c33105a7)
+
 There are three unrelated ways to run JShellPlaygroundBackend:
 - [JShellWrapper alone](#how-to-use-jshellwrapper-alone-in-local) in case you specifically want to improve or debug the wrapper
 - [JShellAPI in local](#how-to-use-jshellapi) in case you specifically want to improve or debug the API
