@@ -48,6 +48,46 @@ class JShellWrapperTest {
     }
 
     @Test
+    void testExpressionResult() {
+        evalTest(
+                """
+            eval
+            1
+            "Hello world!\"""",
+                """
+                OK
+                0
+                OK
+                1
+                VALID
+                ADDITION
+                1
+                "Hello world!"
+                "Hello world!"
+
+                false
+                """);
+        evalTest(
+                """
+            eval
+            1
+            2+2""",
+                """
+                OK
+                0
+                OK
+                1
+                VALID
+                ADDITION
+                1
+                2+2
+                4
+
+                false
+                """);
+    }
+
+    @Test
     void testMultilinesInput() {
         evalTest("""
                 eval
