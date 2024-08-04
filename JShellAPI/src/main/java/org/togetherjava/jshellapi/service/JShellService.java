@@ -222,18 +222,19 @@ public class JShellService {
     }
 
     public void close() {
-        LOGGER.debug("Close called for session {}.", id);
         try {
-            try {
-                writer.close();
-            } finally {
-                try {
-                    reader.close();
-                } finally {
-                    if(!dockerService.isDead(containerName())) {
-                        dockerService.killContainerByName(containerName());
-                    }
-                }
+            writer.close();
+        } catch (Exception ex) {
+            LOGGER.error("Unexpected error while closing.", ex);
+        }
+        try {
+            reader.close();
+        } catch (Exception ex) {
+            LOGGER.error("Unexpected error while closing.", ex);
+        }
+        try {
+            if(!dockerService.isDead(containerName())) {
+                dockerService.killContainerByName(containerName());
             }
         } catch (Exception ex) {
             LOGGER.error("Unexpected error while closing.", ex);
