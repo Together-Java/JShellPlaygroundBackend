@@ -64,7 +64,7 @@ public class JShellController {
     }
 
     @DeleteMapping("/{id}")
-    public void delete(@PathVariable String id) throws DockerException {
+    public void delete(@PathVariable String id) {
         validateId(id);
         if (!service.hasSession(id))
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Id " + id + " not found");

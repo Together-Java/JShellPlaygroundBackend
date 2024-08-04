@@ -1,6 +1,5 @@
 package org.togetherjava.jshellapi.service;
 
-import org.apache.tomcat.util.http.fileupload.util.Closeable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.lang.Nullable;
@@ -15,13 +14,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-public class JShellService implements Closeable {
+public class JShellService {
     private static final Logger LOGGER = LoggerFactory.getLogger(JShellService.class);
     private final JShellSessionService sessionService;
     private final String id;
     private final BufferedWriter writer;
     private final BufferedReader reader;
-
+    private boolean markedAsDead;
     private Instant lastTimeoutUpdate;
     private final long timeout;
     private final boolean renewable;
@@ -63,20 +62,18 @@ public class JShellService implements Closeable {
             startupScriptSize = Integer.parseInt(reader.readLine());
         } catch (Exception e) {
             LOGGER.warn("Unexpected error during creation.", e);
+            markAsDead();
             throw new DockerException("Creation of the session failed.", e);
         }
         this.doingOperation = false;
     }
 
     public Optional<JShellResult> eval(String code) throws DockerException {
+        if(shouldDie()) throw new DockerException("Session %s is already dead.".formatted(id));
         synchronized (this) {
             if (!tryStartOperation()) {
                 return Optional.empty();
             }
-        }
-        if (isClosed()) {
-            close();
-            return Optional.empty();
         }
         updateLastTimeout();
         sessionService.scheduleEvalTimeoutValidation(id, evalTimeout + evalTimeoutValidationLeeway);
@@ -95,7 +92,7 @@ public class JShellService implements Closeable {
             return Optional.of(readResult());
         } catch (DockerException | IOException | NumberFormatException ex) {
             LOGGER.warn("Unexpected error.", ex);
-            close();
+            markAsDead();
             throw new DockerException(ex);
         } finally {
             stopOperation();
@@ -147,6 +144,7 @@ public class JShellService implements Closeable {
     }
 
     public Optional<List<String>> snippets(boolean includeStartupScript) throws DockerException {
+        if(shouldDie()) throw new DockerException("Session %s is already dead.".formatted(id));
         synchronized (this) {
             if (!tryStartOperation()) {
                 return Optional.empty();
@@ -169,7 +167,7 @@ public class JShellService implements Closeable {
                     : snippets.subList(startupScriptSize, snippets.size()));
         } catch (Exception ex) {
             LOGGER.warn("Unexpected error.", ex);
-            close();
+            markAsDead();
             throw new DockerException(ex);
         } finally {
             stopOperation();
@@ -186,44 +184,61 @@ public class JShellService implements Closeable {
                     .isBefore(Instant.now());
     }
 
-    public boolean shouldDie() {
-        return lastTimeoutUpdate.plusSeconds(timeout).isBefore(Instant.now());
+    /**
+     * Returns if this session should be killed in the next heartbeat of the session killer.
+     * @return true if this session should be killed in the next heartbeat of the session killer false otherwise
+     */
+    public boolean isMarkedAsDead() {
+        return this.markedAsDead;
     }
 
-    public void stop() throws DockerException {
+    /**
+     * Marks this session as dead and also tries to gracefully close it, so it can be killed in the next heartbeat of the session killer.
+     */
+    public synchronized void markAsDead() {
+        if(this.markedAsDead) return;
+        LOGGER.info("Session {} marked as dead.", id);
+        this.markedAsDead = true;
+
         try {
             writer.write("exit");
             writer.newLine();
             writer.flush();
-        } catch (IOException e) {
-            throw new DockerException(e);
+        } catch (IOException ex) {
+            LOGGER.debug("Couldn't close session {} gracefully.", id, ex);
         }
+    }
+
+    /**
+     * Returns if this session should be killed. Returns true if either it is marked as dead, if the timeout is reached or if the container is dead.
+     * @return true if this session should be killed, false otherwise
+     */
+    public boolean shouldDie() {
+        return markedAsDead || lastTimeoutUpdate.plusSeconds(timeout).isBefore(Instant.now()) || dockerService.isDead(containerName());
     }
 
     public String id() {
         return id;
     }
 
-    @Override
     public void close() {
         LOGGER.debug("Close called for session {}.", id);
         try {
-            dockerService.killContainerByName(containerName());
             try {
                 writer.close();
             } finally {
-                reader.close();
+                try {
+                    reader.close();
+                } finally {
+                    if(!dockerService.isDead(containerName())) {
+                        dockerService.killContainerByName(containerName());
+                    }
+                }
             }
-        } catch (IOException ex) {
+        } catch (Exception ex) {
             LOGGER.error("Unexpected error while closing.", ex);
-        } finally {
-            sessionService.notifyDeath(id);
         }
-    }
-
-    @Override
-    public boolean isClosed() {
-        return dockerService.isDead(containerName());
+        LOGGER.info("Session {} died.", id);
     }
 
     private void updateLastTimeout() {
@@ -243,7 +258,6 @@ public class JShellService implements Closeable {
                         "Container of session " + id + " is dead because status was " + ok);
             }
         } catch (IOException ex) {
-            close();
             throw new DockerException(ex);
         }
     }
