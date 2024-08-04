@@ -38,6 +38,7 @@ public class JShellSessionService {
                 if(service.isMarkedAsDead()) {
                     try {
                         jshellSessions.remove(id).close();
+                        LOGGER.info("Session {} died.", id);
                     } catch (Exception ex) {
                         LOGGER.error("Unexpected exception for session {}", id, ex);
                     }

@@ -239,7 +239,6 @@ public class JShellService {
         } catch (Exception ex) {
             LOGGER.error("Unexpected error while closing.", ex);
         }
-        LOGGER.info("Session {} died.", id);
     }
 
     private void updateLastTimeout() {
