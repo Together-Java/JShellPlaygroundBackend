@@ -28,38 +28,26 @@ public class JShellSessionService {
     private void initScheduler() {
         scheduler = Executors.newSingleThreadScheduledExecutor();
         scheduler.scheduleAtFixedRate(() -> {
-            LOGGER.info("Scheduler heartbeat: started.");
-            jshellSessions.keySet()
-                .stream()
-                .filter(id -> jshellSessions.get(id).isClosed())
-                .forEach(this::notifyDeath);
             List<String> toDie = jshellSessions.keySet()
                 .stream()
                 .filter(id -> jshellSessions.get(id).shouldDie())
                 .toList();
-            LOGGER.info("Scheduler heartbeat: sessions ready to die: {}", toDie);
+            LOGGER.info("Scheduler heartbeat, sessions ready to die: {}", toDie);
             for (String id : toDie) {
-                try {
-                    deleteSession(id);
-                } catch (DockerException ex) {
-                    LOGGER.error("Unexpected error when deleting session.", ex);
+                JShellService service = jshellSessions.get(id);
+                if (service.isMarkedAsDead()) {
+                    try {
+                        jshellSessions.remove(id).close();
+                        LOGGER.info("Session {} died.", id);
+                    } catch (Exception ex) {
+                        LOGGER.error("Unexpected exception for session {}", id, ex);
+                    }
+                } else {
+                    service.markAsDead();
                 }
             }
         }, config.schedulerSessionKillScanRateSeconds(),
                 config.schedulerSessionKillScanRateSeconds(), TimeUnit.SECONDS);
-    }
-
-    void notifyDeath(String id) {
-        JShellService shellService = jshellSessions.remove(id);
-        if (shellService == null) {
-            LOGGER.debug("Notify death on already removed session {}.", id);
-            return;
-        }
-        if (!shellService.isClosed()) {
-            LOGGER.error("JShell Service isn't dead when it should for id {}.", id);
-            return;
-        }
-        LOGGER.info("Session {} died.", id);
     }
 
     public boolean hasSession(String id) {
@@ -85,13 +73,8 @@ public class JShellSessionService {
                 true, config));
     }
 
-    public void deleteSession(String id) throws DockerException {
-        JShellService service = jshellSessions.remove(id);
-        try {
-            service.stop();
-        } finally {
-            scheduler.schedule(service::close, 500, TimeUnit.MILLISECONDS);
-        }
+    public void deleteSession(String id) {
+        jshellSessions.get(id).markAsDead();
     }
 
     private synchronized JShellService createSession(SessionInfo sessionInfo)
@@ -128,7 +111,7 @@ public class JShellSessionService {
             if (service == null)
                 return;
             if (service.isInvalidEvalTimeout()) {
-                service.close();
+                deleteSession(id);
             }
         }, timeSeconds, TimeUnit.SECONDS);
     }
