@@ -225,19 +225,19 @@ public class JShellService {
         try {
             writer.close();
         } catch (Exception ex) {
-            LOGGER.error("Unexpected error while closing.", ex);
+            LOGGER.error("Unexpected error while closing the writer.", ex);
         }
         try {
             reader.close();
         } catch (Exception ex) {
-            LOGGER.error("Unexpected error while closing.", ex);
+            LOGGER.error("Unexpected error while closing the reader.", ex);
         }
         try {
             if(!dockerService.isDead(containerName())) {
                 dockerService.killContainerByName(containerName());
             }
         } catch (Exception ex) {
-            LOGGER.error("Unexpected error while closing.", ex);
+            LOGGER.error("Unexpected error while destroying the container.", ex);
         }
     }
 
