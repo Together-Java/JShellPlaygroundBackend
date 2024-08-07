@@ -69,7 +69,8 @@ public class JShellService {
     }
 
     public Optional<JShellResult> eval(String code) throws DockerException {
-        if(shouldDie()) throw new DockerException("Session %s is already dead.".formatted(id));
+        if (shouldDie())
+            throw new DockerException("Session %s is already dead.".formatted(id));
         synchronized (this) {
             if (!tryStartOperation()) {
                 return Optional.empty();
@@ -144,7 +145,8 @@ public class JShellService {
     }
 
     public Optional<List<String>> snippets(boolean includeStartupScript) throws DockerException {
-        if(shouldDie()) throw new DockerException("Session %s is already dead.".formatted(id));
+        if (shouldDie())
+            throw new DockerException("Session %s is already dead.".formatted(id));
         synchronized (this) {
             if (!tryStartOperation()) {
                 return Optional.empty();
@@ -186,17 +188,21 @@ public class JShellService {
 
     /**
      * Returns if this session should be killed in the next heartbeat of the session killer.
-     * @return true if this session should be killed in the next heartbeat of the session killer false otherwise
+     * 
+     * @return true if this session should be killed in the next heartbeat of the session killer
+     *         false otherwise
      */
     public boolean isMarkedAsDead() {
         return this.markedAsDead;
     }
 
     /**
-     * Marks this session as dead and also tries to gracefully close it, so it can be killed in the next heartbeat of the session killer.
+     * Marks this session as dead and also tries to gracefully close it, so it can be killed in the
+     * next heartbeat of the session killer.
      */
     public synchronized void markAsDead() {
-        if(this.markedAsDead) return;
+        if (this.markedAsDead)
+            return;
         LOGGER.info("Session {} marked as dead.", id);
         this.markedAsDead = true;
 
@@ -210,11 +216,14 @@ public class JShellService {
     }
 
     /**
-     * Returns if this session should be killed. Returns true if either it is marked as dead, if the timeout is reached or if the container is dead.
+     * Returns if this session should be killed. Returns true if either it is marked as dead, if the
+     * timeout is reached or if the container is dead.
+     * 
      * @return true if this session should be killed, false otherwise
      */
     public boolean shouldDie() {
-        return markedAsDead || lastTimeoutUpdate.plusSeconds(timeout).isBefore(Instant.now()) || dockerService.isDead(containerName());
+        return markedAsDead || lastTimeoutUpdate.plusSeconds(timeout).isBefore(Instant.now())
+                || dockerService.isDead(containerName());
     }
 
     public String id() {
@@ -233,7 +242,7 @@ public class JShellService {
             LOGGER.error("Unexpected error while closing the reader.", ex);
         }
         try {
-            if(!dockerService.isDead(containerName())) {
+            if (!dockerService.isDead(containerName())) {
                 dockerService.killContainerByName(containerName());
             }
         } catch (Exception ex) {

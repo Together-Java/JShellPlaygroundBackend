@@ -35,7 +35,7 @@ public class JShellSessionService {
             LOGGER.info("Scheduler heartbeat, sessions ready to die: {}", toDie);
             for (String id : toDie) {
                 JShellService service = jshellSessions.get(id);
-                if(service.isMarkedAsDead()) {
+                if (service.isMarkedAsDead()) {
                     try {
                         jshellSessions.remove(id).close();
                         LOGGER.info("Session {} died.", id);
