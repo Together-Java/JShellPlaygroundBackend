@@ -7,9 +7,11 @@ import com.github.dockerjava.api.model.*;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientImpl;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
+import jakarta.el.PropertyNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +30,9 @@ public class DockerService implements DisposableBean {
     private static final UUID WORKER_UNIQUE_ID = UUID.randomUUID();
 
     private final DockerClient client;
+
+    @Value("${jshell-wrapper.image-name}")
+    private String jshellWrapperImageName;
 
     public DockerService(Config config) {
         DefaultDockerClientConfig clientConfig =
@@ -59,22 +64,33 @@ public class DockerService implements DisposableBean {
 
     public String spawnContainer(long maxMemoryMegs, long cpus, @Nullable String cpuSetCpus,
             String name, Duration evalTimeout, long sysoutLimit) throws InterruptedException {
-        String imageName = "togetherjava.org:5001/togetherjava/jshellwrapper";
+        String imageName = Optional.ofNullable(this.jshellWrapperImageName)
+            .orElseThrow(() -> new PropertyNotFoundException(
+                    "unable to find jshellWrapper image name property"));
+
+        String[] imageNameParts = imageName.split(":master");
+
+        if (imageNameParts.length != 1) {
+            throw new IllegalArgumentException("invalid jshellWrapper image name");
+        }
+
+        String baseImageName = imageNameParts[0];
+
         boolean presentLocally = client.listImagesCmd()
-            .withFilter("reference", List.of(imageName))
+            .withFilter("reference", List.of(baseImageName))
             .exec()
             .stream()
             .flatMap(it -> Arrays.stream(it.getRepoTags()))
             .anyMatch(it -> it.endsWith(":master"));
 
         if (!presentLocally) {
-            client.pullImageCmd(imageName)
+            client.pullImageCmd(baseImageName)
                 .withTag("master")
                 .exec(new PullImageResultCallback())
                 .awaitCompletion(5, TimeUnit.MINUTES);
         }
 
-        return client.createContainerCmd(imageName + ":master")
+        return client.createContainerCmd(baseImageName + ":master")
             .withHostConfig(HostConfig.newHostConfig()
                 .withAutoRemove(true)
                 .withInit(true)

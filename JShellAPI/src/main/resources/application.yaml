@@ -20,6 +20,9 @@ jshellapi:
   dockerResponseTimeout: 60
   dockerConnectionTimeout: 60
 
+jshell-wrapper:
+  image-name: ${jShellWrapperImageName}
+
 server:
   error:
     include-message: always

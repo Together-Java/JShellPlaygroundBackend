@@ -14,26 +14,18 @@ dependencies {
     implementation 'com.github.docker-java:docker-java-core:3.3.6'
 
     testImplementation('org.springframework.boot:spring-boot-starter-test') {
-        configurations {
-            all {
-                exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
-                exclude group: 'ch.qos.logback', module: 'logback-classic'
-                exclude group: 'org.apache.logging.log4j', module: 'log4j-to-slf4j'
-            }
-        }
+        exclude group: 'ch.qos.logback', module: 'logback-classic'
     }
-    testImplementation gradleTestKit()
+    testImplementation 'org.springframework.boot:spring-boot-starter-webflux'
 
     annotationProcessor "org.springframework.boot:spring-boot-configuration-processor"
 
 }
 
-def imageName = 'togetherjava.org:5001/togetherjava/jshellbackend:master' ?: 'latest';
-
 jib {
     from.image = 'eclipse-temurin:21'
     to {
-        image = imageName
+        image = 'togetherjava.org:5001/togetherjava/jshellbackend:master' ?: 'latest'
         auth {
             username = System.getenv('ORG_REGISTRY_USER') ?: ''
             password = System.getenv('ORG_REGISTRY_PASSWORD') ?: ''
@@ -51,41 +43,28 @@ shadowJar {
     archiveVersion.set('')
 }
 
-tasks.register('buildDockerImage') {
-    group = 'Docker'
+def jshellWrapperImageName = rootProject.ext.jShellWrapperImageName;
+
+processResources {
+    filesMatching('application.yaml') {
+        expand(jShellWrapperImageName: jshellWrapperImageName)
+    }
+}
+
+
+def taskBuildDockerImage = tasks.register('buildDockerImage') {
+    group = 'docker'
     description = 'builds jshellwrapper as docker image'
-    dependsOn jibDockerBuild
-    doFirst{
-        println('creating docker image...')
-    }
-    doLast{
-        println('docker image is ready for use')
-    }
+    dependsOn project(':JShellWrapper').tasks.named('jibDockerBuild')
 }
 
-tasks.register('removeDockerImage', Exec) {
-    group = 'Docker'
+def taskRemoveDockerImage = tasks.register('removeDockerImage', Exec) {
+    group = 'docker'
     description = 'removes jshellwrapper image'
-    commandLine 'docker', 'rmi', '-f', imageName
-    doLast{
-        println('docker image has been removed')
-    }
+    commandLine 'docker', 'rmi', '-f', jshellWrapperImageName
 }
 
-tasks.named('test') {
-    dependsOn tasks.named('buildDockerImage')
-
-    doFirst {
-        try {
-            println 'Running JShellAPI tests...'
-        } catch (Exception e) {
-            println 'JShellAPI tests failed'
-            tasks.named('removeDockerImage').get().execute()
-            throw e
-        }
-    }
-    doLast {
-        println 'JShellAPI tests completed.'
-    }
-    finalizedBy tasks.named('removeDockerImage')
+test {
+    dependsOn taskBuildDockerImage
+    finalizedBy taskRemoveDockerImage
 }
