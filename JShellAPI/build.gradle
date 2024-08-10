@@ -13,14 +13,27 @@ dependencies {
     implementation 'com.github.docker-java:docker-java-transport-httpclient5:3.3.6'
     implementation 'com.github.docker-java:docker-java-core:3.3.6'
 
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation('org.springframework.boot:spring-boot-starter-test') {
+        configurations {
+            all {
+                exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
+                exclude group: 'ch.qos.logback', module: 'logback-classic'
+                exclude group: 'org.apache.logging.log4j', module: 'log4j-to-slf4j'
+            }
+        }
+    }
+    testImplementation gradleTestKit()
+
     annotationProcessor "org.springframework.boot:spring-boot-configuration-processor"
+
 }
+
+def imageName = 'togetherjava.org:5001/togetherjava/jshellbackend:master' ?: 'latest';
 
 jib {
     from.image = 'eclipse-temurin:21'
     to {
-        image = 'togetherjava.org:5001/togetherjava/jshellbackend:master' ?: 'latest'
+        image = imageName
         auth {
             username = System.getenv('ORG_REGISTRY_USER') ?: ''
             password = System.getenv('ORG_REGISTRY_PASSWORD') ?: ''
@@ -36,4 +49,43 @@ shadowJar {
     archiveBaseName.set('JShellPlaygroundBackend')
     archiveClassifier.set('')
     archiveVersion.set('')
+}
+
+tasks.register('buildDockerImage') {
+    group = 'Docker'
+    description = 'builds jshellwrapper as docker image'
+    dependsOn jibDockerBuild
+    doFirst{
+        println('creating docker image...')
+    }
+    doLast{
+        println('docker image is ready for use')
+    }
+}
+
+tasks.register('removeDockerImage', Exec) {
+    group = 'Docker'
+    description = 'removes jshellwrapper image'
+    commandLine 'docker', 'rmi', '-f', imageName
+    doLast{
+        println('docker image has been removed')
+    }
+}
+
+tasks.named('test') {
+    dependsOn tasks.named('buildDockerImage')
+
+    doFirst {
+        try {
+            println 'Running JShellAPI tests...'
+        } catch (Exception e) {
+            println 'JShellAPI tests failed'
+            tasks.named('removeDockerImage').get().execute()
+            throw e
+        }
+    }
+    doLast {
+        println 'JShellAPI tests completed.'
+    }
+    finalizedBy tasks.named('removeDockerImage')
 }
