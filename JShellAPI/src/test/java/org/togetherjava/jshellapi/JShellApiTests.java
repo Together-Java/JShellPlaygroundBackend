@@ -35,11 +35,14 @@ public class JShellApiTests {
     @DisplayName("When posting code snippet, evaluate it then returns successfully result")
     public void evaluateCodeSnippetTest() {
 
+        final String endpoint =
+                String.join("/", ApiEndpoints.BASE, ApiEndpoints.EVALUATE, TEST_EVALUATION_ID);
+
         JShellResult result = this.webTestClient.mutate()
             .responseTimeout(Duration.ofSeconds(6))
             .build()
             .post()
-            .uri(ApiEndpoints.EVALUATE_CODE_SNIPPET + "/" + TEST_EVALUATION_ID)
+            .uri(endpoint)
             .bodyValue(TEST_CODE_INPUT)
             .exchange()
             .expectStatus()
