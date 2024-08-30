@@ -4,7 +4,7 @@ jshellapi:
   regularSessionTimeoutSeconds: 1800
   oneTimeSessionTimeoutSeconds: 30
   evalTimeoutSeconds: 15
-  evalTimeoutValidationLeeway: 10
+  evalTimeoutValidationLeeway: 5
   sysOutCharLimit: 1024
   maxAliveSessions: 10
 
@@ -14,7 +14,7 @@ jshellapi:
   dockerCPUSetCPUs: 0
 
   # Internal config
-  schedulerSessionKillScanRateSeconds: 60
+  schedulerSessionKillScanRateSeconds: 10
 
   # Docker service config
   dockerResponseTimeout: 60
@@ -29,3 +29,5 @@ logging:
     org:
       springframework:
         web: DEBUG
+      togetherjava:
+        jshellapi: DEBUG

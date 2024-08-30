@@ -49,12 +49,10 @@ class JShellWrapperTest {
 
     @Test
     void testExpressionResult() {
-        evalTest(
-                """
-            eval
-            1
-            "Hello world!\"""",
-                """
+        evalTest("""
+                eval
+                1
+                "Hello world!\"""", """
                 OK
                 0
                 OK
@@ -67,12 +65,10 @@ class JShellWrapperTest {
 
                 false
                 """);
-        evalTest(
-                """
-            eval
-            1
-            2+2""",
-                """
+        evalTest("""
+                eval
+                1
+                2+2""", """
                 OK
                 0
                 OK
