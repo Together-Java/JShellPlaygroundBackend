@@ -102,3 +102,96 @@ The maximum ram allocated per container, in megabytes.
 The cpu configuration of each container, see [--cpus option of docker](https://docs.docker.com/config/containers/resource_constraints/#cpu).
 ### jshellapi.schedulerSessionKillScanRate
 The rate at which the session killer will check and delete session, in seconds, see [Session timeout](#Session-timeout).
+
+## Testing
+
+>  The work on testing was made in collaboration with [Alathreon](https://github.com/Alathreon) and [Wazei](https://github.com/tj-wazei). I'd like thank both of them for their trust. - FirasRG
+
+This section outlines the work done to set up the first integration test that evaluates Java code by running it in a [Docker](https://www.docker.com/get-started/) container. The test ensures that the [Eval endpoint](#eval) can execute code within the containerized environment of [**JShellWrapper**](../JShellWrapper).
+
+### Usage
+
+```java
+@ContextConfiguration(classes = Main.class)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+public class JShellApiTests {
+
+    @Autowired
+    private WebTestClient webTestClient;
+
+    @Test
+    @DisplayName("When posting code snippet, evaluate it then returns successfully result")
+    public void evaluateCodeSnippetTest() {
+
+        final String testEvalId = "test";
+        
+        final String firstCodeExpression = "int a = 2+2;";
+
+        final JShellSnippetResult firstCodeSnippet = new JShellSnippetResult(SnippetStatus.VALID, SnippetType.ADDITION, 1, firstCodeExpression, "4");
+        
+        final JShellResult firstCodeExpectedResult = getJShellResultDefaultInstance(firstCodeSnippet);
+
+        assertThat(testEval(testEvalId, firstCodeExpression)).isEqualTo(firstCodeExpectedResult);
+        
+        // performing a second code execution test ...
+    }
+    // some methods ...
+}
+```
+
+### 1. Java Test Setup
+
+The [@SpringBootTest](https://docs.spring.io/spring-boot/api/java/org/springframework/boot/test/context/SpringBootTest.html) and [@ContextConfiguration](https://docs.spring.io/spring-framework/reference/testing/annotations/integration-spring/annotation-contextconfiguration.html) annotations are needed to prepare the app to tests, like in a real scenario.
+
+NOTE: _Test classes must be located under `/src/test/java/{org.togetherjava.jshellapi}`._
+
+- The test uses [WebTestClient](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/test/web/reactive/server/WebTestClient.html) to make HTTP calls to the target endpoint.
+- Multiple API calls are made within the test method, so a utility instance method was created for reuse.
+- The test ensures that code is correctly evaluated inside the **JShellWrapper** container.
+
+### 2. Gradle Configuration for Tests
+
+The `build.gradle` of this project has been updated to handle **JShellWrapper** Docker image lifecycle during tests.
+
+- **JShellWrapper Image Name**: the image name is injected from the root [build.gradle](../build.gradle) file, to this project's [build.gradle](build.gradle) file and also to [application.yaml](src/main/resources/application.yaml)!
+- **JShellWrapper Docker Image**: The image is built before the tests run.
+- **Container & Cleanup**: After the tests finish, the container and image are removed to ensure a clean environment.
+
+```groovy
+def jshellWrapperImageName = rootProject.ext.jShellWrapperImageName;
+
+processResources {
+  filesMatching('application.yaml') {
+    expand(jShellWrapperImageName: jshellWrapperImageName)
+  }
+}
+
+def taskBuildDockerImage = tasks.register('buildDockerImage') {
+    group = 'docker'
+    description = 'builds jshellwrapper as docker image'
+    dependsOn project(':JShellWrapper').tasks.named('jibDockerBuild')
+}
+
+def taskRemoveDockerImage = tasks.register('removeDockerImage', Exec) {
+    group = 'docker'
+    description = 'removes jshellwrapper image'
+    commandLine 'docker', 'rmi', '-f', jshellWrapperImageName
+}
+
+test {
+    dependsOn taskBuildDockerImage
+    finalizedBy taskRemoveDockerImage
+}
+```
+
+Below are the key dependencies that were added or modified in the `build.gradle` file of this project :
+
+```groovy
+testImplementation('org.springframework.boot:spring-boot-starter-test') {
+  exclude group: 'ch.qos.logback', module: 'logback-classic'
+}
+testImplementation 'org.springframework.boot:spring-boot-starter-webflux'
+```
+
+- The `logback-classic` has been excluded because of an issue encountered when running tests. The issue is typically about a conflict between some dependencies (This solution has been brought based on [a _good_ answer on Stackoverflow](https://stackoverflow.com/a/42641450/10000150))
+- The `spring-boot-starter-webflux` was needed in order to be able to use **WebTestClient**.
