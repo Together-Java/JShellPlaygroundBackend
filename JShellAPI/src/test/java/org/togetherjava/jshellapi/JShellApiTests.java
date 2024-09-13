@@ -8,9 +8,13 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 import org.togetherjava.jshellapi.dto.JShellResult;
+import org.togetherjava.jshellapi.dto.JShellSnippetResult;
+import org.togetherjava.jshellapi.dto.SnippetStatus;
+import org.togetherjava.jshellapi.dto.SnippetType;
 import org.togetherjava.jshellapi.rest.ApiEndpoints;
 
 import java.time.Duration;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -20,46 +24,67 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * @author Firas Regaieg
  */
-@ContextConfiguration
+@ContextConfiguration(classes = Main.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public class JShellApiTests {
 
     @Autowired
     private WebTestClient webTestClient;
 
-    private static final String TEST_EVALUATION_ID = "test";
-    private static final String TEST_CODE_INPUT = "2+2";
-    private static final String TEST_CODE_EXPECTED_OUTPUT = "4";
-
     @Test
     @DisplayName("When posting code snippet, evaluate it then returns successfully result")
     public void evaluateCodeSnippetTest() {
 
+        final String testEvalId = "test";
+
+        // -- performing a first code snippet execution
+
+        final String firstCodeExpression = "int a = 2+2;";
+
+        final JShellSnippetResult firstCodeSnippet = new JShellSnippetResult(SnippetStatus.VALID,
+                SnippetType.ADDITION, 1, firstCodeExpression, "4");
+        final JShellResult firstCodeExpectedResult =
+                getJShellResultDefaultInstance(firstCodeSnippet);
+
+        assertThat(testEval(testEvalId, firstCodeExpression)).isEqualTo(firstCodeExpectedResult);
+
+        // -- performing a second code snippet execution
+
+        final String secondCodeExpression = "a * 2";
+
+        final JShellSnippetResult secondCodeSnippet = new JShellSnippetResult(SnippetStatus.VALID,
+                SnippetType.ADDITION, 2, secondCodeExpression, "8");
+
+        final JShellResult secondCodeExpectedResult =
+                getJShellResultDefaultInstance(secondCodeSnippet);
+
+        assertThat(testEval(testEvalId, secondCodeExpression)).isEqualTo(secondCodeExpectedResult);
+    }
+
+    private JShellResult testEval(String testEvalId, String codeInput) {
         final String endpoint =
-                String.join("/", ApiEndpoints.BASE, ApiEndpoints.EVALUATE, TEST_EVALUATION_ID);
+                String.join("/", ApiEndpoints.BASE, ApiEndpoints.EVALUATE, testEvalId);
 
         JShellResult result = this.webTestClient.mutate()
             .responseTimeout(Duration.ofSeconds(6))
             .build()
             .post()
             .uri(endpoint)
-            .bodyValue(TEST_CODE_INPUT)
+            .bodyValue(codeInput)
             .exchange()
             .expectStatus()
             .isOk()
             .expectBody(JShellResult.class)
-            .value(task -> assertThat(task).isNotNull())
+            .value((JShellResult evalResult) -> assertThat(evalResult).isNotNull())
             .returnResult()
             .getResponseBody();
 
         assertThat(result).isNotNull();
 
-        boolean isValidResult = result.snippetsResults()
-            .stream()
-            .filter(res -> res.result() != null)
-            .anyMatch(res -> res.result().equals(TEST_CODE_EXPECTED_OUTPUT));
+        return result;
+    }
 
-        assertThat(isValidResult).isTrue();
-
+    private static JShellResult getJShellResultDefaultInstance(JShellSnippetResult snippetResult) {
+        return new JShellResult(List.of(snippetResult), null, false, "");
     }
 }
