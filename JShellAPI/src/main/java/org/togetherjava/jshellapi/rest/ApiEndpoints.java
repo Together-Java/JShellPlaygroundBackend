@@ -1,10 +1,7 @@
 package org.togetherjava.jshellapi.rest;
 
 /**
- * This class holds endpoints mentioned in controllers. The main objective is to keep endpoints
- * synchronized with testing classes.
- *
- * @author Firas Regaieg
+ * Holds endpoints mentioned in controllers.
  */
 public final class ApiEndpoints {
     private ApiEndpoints() {}

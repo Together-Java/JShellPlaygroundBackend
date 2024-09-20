@@ -14,6 +14,9 @@ dependencies {
     implementation 'com.github.docker-java:docker-java-core:3.3.6'
 
     testImplementation('org.springframework.boot:spring-boot-starter-test') {
+        // `logback-classic` has been excluded because of an issue encountered when running tests.
+        // It's about a conflict between some dependencies.
+        // The solution has been brought based on a good answer on Stackoverflow: https://stackoverflow.com/a/42641450/10000150
         exclude group: 'ch.qos.logback', module: 'logback-classic'
     }
     testImplementation 'org.springframework.boot:spring-boot-starter-webflux'
@@ -43,11 +46,13 @@ shadowJar {
     archiveVersion.set('')
 }
 
+// -- Gradle testing configuration
+
 def jshellWrapperImageName = rootProject.ext.jShellWrapperImageName;
 
 processResources {
     filesMatching('application.yaml') {
-        expand(jShellWrapperImageName: jshellWrapperImageName)
+        expand("JSHELL_WRAPPER_IMAGE_NAME": jshellWrapperImageName)
     }
 }
 

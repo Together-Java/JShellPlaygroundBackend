@@ -1,0 +1,11 @@
+jshellapi:
+
+  # Public API Config
+  regularSessionTimeoutSeconds: 10
+
+  # Internal config
+  schedulerSessionKillScanRateSeconds: 6
+
+  # Docker service config
+  dockerResponseTimeout: 6
+  dockerConnectionTimeout: 6

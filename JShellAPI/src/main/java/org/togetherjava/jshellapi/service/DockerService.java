@@ -7,11 +7,9 @@ import com.github.dockerjava.api.model.*;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientImpl;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
-import jakarta.el.PropertyNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
@@ -31,8 +29,7 @@ public class DockerService implements DisposableBean {
 
     private final DockerClient client;
 
-    @Value("${jshell-wrapper.image-name}")
-    private String jshellWrapperImageName;
+    private final String jshellWrapperBaseImageName;
 
     public DockerService(Config config) {
         DefaultDockerClientConfig clientConfig =
@@ -44,6 +41,9 @@ public class DockerService implements DisposableBean {
                     .connectionTimeout(Duration.ofSeconds(config.dockerConnectionTimeout()))
                     .build();
         this.client = DockerClientImpl.getInstance(clientConfig, httpClient);
+
+        this.jshellWrapperBaseImageName =
+                config.jshellWrapperImageName().split(Config.JSHELL_WRAPPER_IMAGE_NAME_TAG)[0];
 
         cleanupLeftovers(WORKER_UNIQUE_ID);
     }
@@ -64,33 +64,23 @@ public class DockerService implements DisposableBean {
 
     public String spawnContainer(long maxMemoryMegs, long cpus, @Nullable String cpuSetCpus,
             String name, Duration evalTimeout, long sysoutLimit) throws InterruptedException {
-        String imageName = Optional.ofNullable(this.jshellWrapperImageName)
-            .orElseThrow(() -> new PropertyNotFoundException(
-                    "unable to find jshellWrapper image name property"));
-
-        String[] imageNameParts = imageName.split(":master");
-
-        if (imageNameParts.length != 1) {
-            throw new IllegalArgumentException("invalid jshellWrapper image name");
-        }
-
-        String baseImageName = imageNameParts[0];
 
         boolean presentLocally = client.listImagesCmd()
-            .withFilter("reference", List.of(baseImageName))
+            .withFilter("reference", List.of(jshellWrapperBaseImageName))
             .exec()
             .stream()
             .flatMap(it -> Arrays.stream(it.getRepoTags()))
-            .anyMatch(it -> it.endsWith(":master"));
+            .anyMatch(it -> it.endsWith(Config.JSHELL_WRAPPER_IMAGE_NAME_TAG));
 
         if (!presentLocally) {
-            client.pullImageCmd(baseImageName)
+            client.pullImageCmd(jshellWrapperBaseImageName)
                 .withTag("master")
                 .exec(new PullImageResultCallback())
                 .awaitCompletion(5, TimeUnit.MINUTES);
         }
 
-        return client.createContainerCmd(baseImageName + ":master")
+        return client
+            .createContainerCmd(jshellWrapperBaseImageName + Config.JSHELL_WRAPPER_IMAGE_NAME_TAG)
             .withHostConfig(HostConfig.newHostConfig()
                 .withAutoRemove(true)
                 .withInit(true)
