@@ -67,4 +67,4 @@ jobs:
           gh pr create --title "Update eclipse-temurin version to $latest_version" \
           --body "This PR updates the eclipse-temurin version in the JShellAPI build.gradle file from $current_version to $latest_version." \
           --head "$branch_name" \
-          --base "main"
+          --base "develop"
