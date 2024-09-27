@@ -23,7 +23,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Extract current version from JShellAPI build.gradle
-          gradle_file="JShellAPI/build.gradle"
+          gradle_file="JShellWrapper/build.gradle"
           current_version=$(grep -oP "(?<=from\.image\s=\s'eclipse-temurin:)\d+" $gradle_file)
           
           if [ -z "$current_version" ]; then
@@ -33,8 +33,9 @@ jobs:
           
           # Fetch the latest eclipse-temurin image
           latest_version=$(curl -s "https://hub.docker.com/v2/repositories/library/eclipse-temurin/tags/?page_size=100" | \
-          jq -r '[.results[].name | select(test("^[0-9]+"))] | map(capture("^(?<major>[0-9]+)")) | max_by(.major | tonumber) | .major')
-          
+          jq -r '[.results[].name | select(test("alpine")) | select(test("^[0-9]+"))] | map(capture("^(?<major>[0-9]+)")) | max_by(.major | tonumber) | .major')
+  
+  
           # Check if a new version is available
           if [ "$latest_version" -le "$current_version" ]; then
             echo "No new versions available"
@@ -42,7 +43,7 @@ jobs:
           fi
           
           # Update the build.gradle with the new version
-          sed -i "s/eclipse-temurin:$current_version/eclipse-temurin:$latest_version/" $gradle_file
+          sed -i "s/eclipse-temurin:$current_version-alpine/eclipse-temurin:$latest_version-alpine/" $gradle_file
           
           echo "Updated eclipse-temurin version from $current_version to $latest_version"
 
