@@ -18,7 +18,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install gh
 
-      - name: Run bash script
+      - name: Update build.gradle
         run: |
           # Extract current version from JShellAPI build.gradle
           gradle_file="JShellAPI/build.gradle"
@@ -61,6 +61,8 @@ jobs:
           git push origin "$branch_name"
 
       - name: Create a pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh pr create --title "Update eclipse-temurin version to $latest_version" \
           --body "This PR updates the eclipse-temurin version in the JShellAPI build.gradle file from $current_version to $latest_version." \
