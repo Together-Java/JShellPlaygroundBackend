@@ -22,7 +22,7 @@ test {
 }
 
 jib {
-    from.image = 'eclipse-temurin:22-alpine'
+    from.image = 'eclipse-temurin:23-alpine'
     to {
         image = 'togetherjava.org:5001/togetherjava/jshellwrapper:master' ?: 'latest'
         auth {
