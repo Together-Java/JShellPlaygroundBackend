@@ -49,15 +49,14 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Create a new branch
           branch_name="update-eclipse-temurin-$latest_version"
           git checkout -b "$branch_name"
           
-          # Add and commit the changes
-          git add JShellAPI/build.gradle
+          git add "$gradle_file"
           git commit -m "Update eclipse-temurin version to $latest_version"
           
-          # Push the new branch to the remote repository
+          git fetch origin
+          git rebase origin/develop
           git push origin "$branch_name"
 
       - name: Create a pull request
