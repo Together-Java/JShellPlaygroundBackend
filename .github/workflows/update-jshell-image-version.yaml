@@ -51,12 +51,6 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
           branch_name="update-jshell-java-version-$latest_version"
-
-          if gh api repos/Together-Java/JShellPlaygroundBackend/branches/$branch_name >/dev/null 2>&1
-          then
-            return 0
-          fi
-
           git checkout -b "$branch_name"
           
           git add "$gradle_file"
