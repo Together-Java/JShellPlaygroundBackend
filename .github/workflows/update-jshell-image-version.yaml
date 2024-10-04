@@ -1,0 +1,66 @@
+name: Auto-Update JShell Image version
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * 5" # Every Friday at Midnight
+
+jobs:
+  update_build_gradle:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install GitHub CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install gh
+
+      - name: Update build.gradle and create PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Extract current version from JShellWrapper build.gradle
+          gradle_file="JShellWrapper/build.gradle"
+          current_version=$(grep -oP "(?<=from\.image\s=\s'eclipse-temurin:)\d+" $gradle_file)
+          
+          if [ -z "$current_version" ]; then
+            echo "Failed to extract version from $gradle_file \"from.image\""
+            exit 1
+          fi
+          
+          # Fetch the latest eclipse-temurin image
+          latest_version=$(curl -s "https://hub.docker.com/v2/repositories/library/eclipse-temurin/tags/?page_size=100" | \
+          jq -r '[.results[].name | select(test("alpine")) | select(test("^[0-9]+"))] | map(capture("^(?<major>[0-9]+)")) | max_by(.major | tonumber) | .major')
+          
+          
+          # Check if a new version is available
+          if [ "$latest_version" -le "$current_version" ]; then
+            echo "No new versions available"
+            exit 0
+          fi
+          
+          # Update the build.gradle with the new version
+          sed -i "s/eclipse-temurin:$current_version-alpine/eclipse-temurin:$latest_version-alpine/" $gradle_file
+          
+          echo "Updated JDK version from $current_version to $latest_version"
+
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          branch_name="update-jshell-java-version-$latest_version"
+          git checkout -b "$branch_name"
+          
+          git add "$gradle_file"
+          git commit -m "JShell Java version to $latest_version"
+          
+          git fetch origin
+          git rebase origin/develop
+          git push origin "$branch_name"
+
+          gh pr create --title "Update JShell java version to $latest_version" \
+          --body "This PR updates the JShell java version in the JShellWrapper build.gradle file from $current_version to $latest_version." \
+          --head "$branch_name" \
+          --base "develop"
