@@ -24,7 +24,7 @@ test {
 jib {
     from.image = 'eclipse-temurin:22-alpine'
     to {
-        image = 'togetherjava.org:5001/togetherjava/jshellwrapper:master' ?: 'latest'
+        image = rootProject.ext.jShellWrapperImageName
         auth {
             username = System.getenv('ORG_REGISTRY_USER') ?: ''
             password = System.getenv('ORG_REGISTRY_PASSWORD') ?: ''

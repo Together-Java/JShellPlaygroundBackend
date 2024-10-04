@@ -13,8 +13,16 @@ dependencies {
     implementation 'com.github.docker-java:docker-java-transport-httpclient5:3.3.6'
     implementation 'com.github.docker-java:docker-java-core:3.3.6'
 
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation('org.springframework.boot:spring-boot-starter-test') {
+        // `logback-classic` has been excluded because of an issue encountered when running tests.
+        // It's about a conflict between some dependencies.
+        // The solution has been brought based on a good answer on Stackoverflow: https://stackoverflow.com/a/42641450/10000150
+        exclude group: 'ch.qos.logback', module: 'logback-classic'
+    }
+    testImplementation 'org.springframework.boot:spring-boot-starter-webflux'
+
     annotationProcessor "org.springframework.boot:spring-boot-configuration-processor"
+
 }
 
 jib {
@@ -36,4 +44,32 @@ shadowJar {
     archiveBaseName.set('JShellPlaygroundBackend')
     archiveClassifier.set('')
     archiveVersion.set('')
+}
+
+// -- Gradle testing configuration
+
+def jshellWrapperImageName = rootProject.ext.jShellWrapperImageName;
+
+processResources {
+    filesMatching('application.yaml') {
+        expand("JSHELL_WRAPPER_IMAGE_NAME": jshellWrapperImageName)
+    }
+}
+
+
+def taskBuildDockerImage = tasks.register('buildDockerImage') {
+    group = 'docker'
+    description = 'builds jshellwrapper as docker image'
+    dependsOn project(':JShellWrapper').tasks.named('jibDockerBuild')
+}
+
+def taskRemoveDockerImage = tasks.register('removeDockerImage', Exec) {
+    group = 'docker'
+    description = 'removes jshellwrapper image'
+    commandLine 'docker', 'rmi', '-f', jshellWrapperImageName
+}
+
+test {
+    dependsOn taskBuildDockerImage
+    finalizedBy taskRemoveDockerImage
 }

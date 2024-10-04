@@ -1,0 +1,8 @@
+{
+  "properties": [
+    {
+      "name": "jshellapi.jshellwrapper-imageName",
+      "type": "java.lang.String",
+      "description": "JShellWrapper image name injected from the top-level gradle build file."
+  }
+] }

@@ -29,6 +29,8 @@ public class DockerService implements DisposableBean {
 
     private final DockerClient client;
 
+    private final String jshellWrapperBaseImageName;
+
     public DockerService(Config config) {
         DefaultDockerClientConfig clientConfig =
                 DefaultDockerClientConfig.createDefaultConfigBuilder().build();
@@ -39,6 +41,9 @@ public class DockerService implements DisposableBean {
                     .connectionTimeout(Duration.ofSeconds(config.dockerConnectionTimeout()))
                     .build();
         this.client = DockerClientImpl.getInstance(clientConfig, httpClient);
+
+        this.jshellWrapperBaseImageName =
+                config.jshellWrapperImageName().split(Config.JSHELL_WRAPPER_IMAGE_NAME_TAG)[0];
 
         cleanupLeftovers(WORKER_UNIQUE_ID);
     }
@@ -59,22 +64,23 @@ public class DockerService implements DisposableBean {
 
     public String spawnContainer(long maxMemoryMegs, long cpus, @Nullable String cpuSetCpus,
             String name, Duration evalTimeout, long sysoutLimit) throws InterruptedException {
-        String imageName = "togetherjava.org:5001/togetherjava/jshellwrapper";
+
         boolean presentLocally = client.listImagesCmd()
-            .withFilter("reference", List.of(imageName))
+            .withFilter("reference", List.of(jshellWrapperBaseImageName))
             .exec()
             .stream()
             .flatMap(it -> Arrays.stream(it.getRepoTags()))
-            .anyMatch(it -> it.endsWith(":master"));
+            .anyMatch(it -> it.endsWith(Config.JSHELL_WRAPPER_IMAGE_NAME_TAG));
 
         if (!presentLocally) {
-            client.pullImageCmd(imageName)
+            client.pullImageCmd(jshellWrapperBaseImageName)
                 .withTag("master")
                 .exec(new PullImageResultCallback())
                 .awaitCompletion(5, TimeUnit.MINUTES);
         }
 
-        return client.createContainerCmd(imageName + ":master")
+        return client
+            .createContainerCmd(jshellWrapperBaseImageName + Config.JSHELL_WRAPPER_IMAGE_NAME_TAG)
             .withHostConfig(HostConfig.newHostConfig()
                 .withAutoRemove(true)
                 .withInit(true)

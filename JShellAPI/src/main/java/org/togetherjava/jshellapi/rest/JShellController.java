@@ -15,13 +15,13 @@ import org.togetherjava.jshellapi.service.StartupScriptsService;
 
 import java.util.List;
 
-@RequestMapping("jshell")
+@RequestMapping(ApiEndpoints.BASE)
 @RestController
 public class JShellController {
     private JShellSessionService service;
     private StartupScriptsService startupScriptsService;
 
-    @PostMapping("/eval/{id}")
+    @PostMapping(ApiEndpoints.EVALUATE + "/{id}")
     public JShellResult eval(@PathVariable String id,
             @RequestParam(required = false) StartupScriptId startupScriptId,
             @RequestBody String code) throws DockerException {
@@ -32,7 +32,7 @@ public class JShellController {
                     "An operation is already running"));
     }
 
-    @PostMapping("/eval")
+    @PostMapping(ApiEndpoints.EVALUATE)
     public JShellResultWithId eval(@RequestParam(required = false) StartupScriptId startupScriptId,
             @RequestBody String code) throws DockerException {
         JShellService jShellService = service.session(startupScriptId);
@@ -42,7 +42,7 @@ public class JShellController {
                             "An operation is already running")));
     }
 
-    @PostMapping("/single-eval")
+    @PostMapping(ApiEndpoints.SINGLE_EVALUATE)
     public JShellResult singleEval(@RequestParam(required = false) StartupScriptId startupScriptId,
             @RequestBody String code) throws DockerException {
         JShellService jShellService = service.oneTimeSession(startupScriptId);
@@ -51,7 +51,7 @@ public class JShellController {
                     "An operation is already running"));
     }
 
-    @GetMapping("/snippets/{id}")
+    @GetMapping(ApiEndpoints.SNIPPETS + "/{id}")
     public List<String> snippets(@PathVariable String id,
             @RequestParam(required = false) boolean includeStartupScript) throws DockerException {
         validateId(id);
@@ -71,7 +71,7 @@ public class JShellController {
         service.deleteSession(id);
     }
 
-    @GetMapping("/startup_script/{id}")
+    @GetMapping(ApiEndpoints.STARTING_SCRIPT + "/{id}")
     public String startupScript(@PathVariable StartupScriptId id) {
         return startupScriptsService.get(id);
     }
