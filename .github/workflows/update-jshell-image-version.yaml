@@ -22,7 +22,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Extract current version from JShellAPI build.gradle
+          # Extract current version from JShellWrapper build.gradle
           gradle_file="JShellWrapper/build.gradle"
           current_version=$(grep -oP "(?<=from\.image\s=\s'eclipse-temurin:)\d+" $gradle_file)
           
@@ -45,7 +45,7 @@ jobs:
           # Update the build.gradle with the new version
           sed -i "s/eclipse-temurin:$current_version-alpine/eclipse-temurin:$latest_version-alpine/" $gradle_file
           
-          echo "Updated eclipse-temurin version from $current_version to $latest_version"
+          echo "Updated JDK version from $current_version to $latest_version"
 
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
