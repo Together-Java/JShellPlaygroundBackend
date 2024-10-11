@@ -22,7 +22,7 @@ test {
 }
 
 jib {
-    from.image = 'eclipse-temurin:23-alpine'
+    from.image = 'eclipse-temurin:null-alpine'
     to {
         image = rootProject.ext.jShellWrapperImageName
         auth {
