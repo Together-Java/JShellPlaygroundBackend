@@ -27,8 +27,6 @@ public class DockerService implements DisposableBean {
     private static final Logger LOGGER = LoggerFactory.getLogger(DockerService.class);
     private static final String WORKER_LABEL = "jshell-api-worker";
     private static final UUID WORKER_UNIQUE_ID = UUID.randomUUID();
-    private static final String IMAGE_NAME = "togetherjava.org:5001/togetherjava/jshellwrapper";
-    private static final String IMAGE_TAG = "master";
 
     private final DockerClient client;
     private final Config config;
@@ -39,7 +37,8 @@ public class DockerService implements DisposableBean {
 
     private final String jshellWrapperBaseImageName;
 
-    public DockerService(Config config, StartupScriptsService startupScriptsService) throws InterruptedException, IOException {
+    public DockerService(Config config, StartupScriptsService startupScriptsService)
+            throws InterruptedException, IOException {
         this.startupScriptsService = startupScriptsService;
         DefaultDockerClientConfig clientConfig =
                 DefaultDockerClientConfig.createDefaultConfigBuilder().build();
@@ -83,11 +82,11 @@ public class DockerService implements DisposableBean {
      */
     private boolean isImagePresentLocally() {
         return client.listImagesCmd()
-                .withFilter("reference", List.of(jshellWrapperBaseImageName))
-                .exec()
-                .stream()
-                .flatMap(it -> Arrays.stream(it.getRepoTags()))
-                .anyMatch(it -> it.endsWith(Config.JSHELL_WRAPPER_IMAGE_NAME_TAG));
+            .withFilter("reference", List.of(jshellWrapperBaseImageName))
+            .exec()
+            .stream()
+            .flatMap(it -> Arrays.stream(it.getRepoTags()))
+            .anyMatch(it -> it.endsWith(Config.JSHELL_WRAPPER_IMAGE_NAME_TAG));
     }
 
     /**
@@ -96,9 +95,9 @@ public class DockerService implements DisposableBean {
     private void pullImage() throws InterruptedException {
         if (!isImagePresentLocally()) {
             client.pullImageCmd(jshellWrapperBaseImageName)
-                    .withTag(IMAGE_TAG)
-                    .exec(new PullImageResultCallback())
-                    .awaitCompletion(5, TimeUnit.MINUTES);
+                .withTag("master")
+                .exec(new PullImageResultCallback())
+                .awaitCompletion(5, TimeUnit.MINUTES);
         }
     }
 
@@ -120,18 +119,19 @@ public class DockerService implements DisposableBean {
             .withCpuCount((long) Math.ceil(config.dockerCPUsUsage()))
             .withCpusetCpus(config.dockerCPUSetCPUs());
 
-        return client.createContainerCmd(jshellWrapperBaseImageName + Config.JSHELL_WRAPPER_IMAGE_NAME_TAG)
-                .withHostConfig(hostConfig)
-                .withStdinOpen(true)
-                .withAttachStdin(true)
-                .withAttachStderr(true)
-                .withAttachStdout(true)
-                .withEnv("evalTimeoutSeconds=" + config.evalTimeoutSeconds(),
-                        "sysOutCharLimit=" + config.sysOutCharLimit())
-                .withLabels(Map.of(WORKER_LABEL, WORKER_UNIQUE_ID.toString()))
-                .withName(name)
-                .exec()
-                .getId();
+        return client
+            .createContainerCmd(jshellWrapperBaseImageName + Config.JSHELL_WRAPPER_IMAGE_NAME_TAG)
+            .withHostConfig(hostConfig)
+            .withStdinOpen(true)
+            .withAttachStdin(true)
+            .withAttachStderr(true)
+            .withAttachStdout(true)
+            .withEnv("evalTimeoutSeconds=" + config.evalTimeoutSeconds(),
+                    "sysOutCharLimit=" + config.sysOutCharLimit())
+            .withLabels(Map.of(WORKER_LABEL, WORKER_UNIQUE_ID.toString()))
+            .withName(name)
+            .exec()
+            .getId();
     }
 
     /**
@@ -143,7 +143,7 @@ public class DockerService implements DisposableBean {
      */
     public ContainerState initializeContainer(String name, StartupScriptId startupScriptId)
             throws IOException {
-        if (cachedContainers.isEmpty() || !cachedContainers.containsKey(startupScriptId)) {
+        if (startupScriptId == null || cachedContainers.isEmpty() || !cachedContainers.containsKey(startupScriptId)) {
             String containerId = createContainer(name);
             return setupContainerWithScript(containerId, true, startupScriptId);
         }
