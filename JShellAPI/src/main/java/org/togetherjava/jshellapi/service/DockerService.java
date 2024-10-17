@@ -33,7 +33,8 @@ public class DockerService implements DisposableBean {
     private final DockerClient client;
     private final Config config;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
-    private final ConcurrentHashMap<StartupScriptId, String> cachedContainers = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<StartupScriptId, String> cachedContainers =
+            new ConcurrentHashMap<>();
     private final StartupScriptsService startupScriptsService;
 
     private final String jshellWrapperBaseImageName;
@@ -109,15 +110,15 @@ public class DockerService implements DisposableBean {
      */
     public String createContainer(String name) {
         HostConfig hostConfig = HostConfig.newHostConfig()
-                .withAutoRemove(true)
-                .withInit(true)
-                .withCapDrop(Capability.ALL)
-                .withNetworkMode("none")
-                .withPidsLimit(2000L)
-                .withReadonlyRootfs(true)
-                .withMemory((long) config.dockerMaxRamMegaBytes() * 1024 * 1024)
-                .withCpuCount((long) Math.ceil(config.dockerCPUsUsage()))
-                .withCpusetCpus(config.dockerCPUSetCPUs());
+            .withAutoRemove(true)
+            .withInit(true)
+            .withCapDrop(Capability.ALL)
+            .withNetworkMode("none")
+            .withPidsLimit(2000L)
+            .withReadonlyRootfs(true)
+            .withMemory((long) config.dockerMaxRamMegaBytes() * 1024 * 1024)
+            .withCpuCount((long) Math.ceil(config.dockerCPUsUsage()))
+            .withCpusetCpus(config.dockerCPUSetCPUs());
 
         return client.createContainerCmd(jshellWrapperBaseImageName + Config.JSHELL_WRAPPER_IMAGE_NAME_TAG)
                 .withHostConfig(hostConfig)
@@ -140,14 +141,15 @@ public class DockerService implements DisposableBean {
      * @param startupScriptId Script to initialize the container with.
      * @return The ContainerState of the newly created container.
      */
-    public ContainerState initializeContainer(String name, StartupScriptId startupScriptId) throws IOException {
+    public ContainerState initializeContainer(String name, StartupScriptId startupScriptId)
+            throws IOException {
         if (cachedContainers.isEmpty() || !cachedContainers.containsKey(startupScriptId)) {
             String containerId = createContainer(name);
             return setupContainerWithScript(containerId, true, startupScriptId);
         }
         String containerId = cachedContainers.get(startupScriptId);
         executor.submit(() -> initializeCachedContainer(startupScriptId));
-        // Rename container with new name.
+
         client.renameContainerCmd(containerId).withName(name).exec();
         return setupContainerWithScript(containerId, false, startupScriptId);
     }
@@ -163,7 +165,8 @@ public class DockerService implements DisposableBean {
         startContainer(id);
 
         try (PipedInputStream containerInput = new PipedInputStream();
-            BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new PipedOutputStream(containerInput)))) {
+                BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(new PipedOutputStream(containerInput)))) {
             attachToContainer(id, containerInput);
 
             writer.write(Utils.sanitizeStartupScript(startupScriptsService.get(startupScriptId)));
@@ -185,12 +188,14 @@ public class DockerService implements DisposableBean {
      * @return ContainerState of the spawned container.
      * @throws IOException if an I/O error occurs
      */
-    private ContainerState setupContainerWithScript(String containerId, boolean isCached, StartupScriptId startupScriptId) throws IOException {
+    private ContainerState setupContainerWithScript(String containerId, boolean isCached,
+            StartupScriptId startupScriptId) throws IOException {
         if (!isCached) {
             startContainer(containerId);
         }
         PipedInputStream containerInput = new PipedInputStream();
-        BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new PipedOutputStream(containerInput)));
+        BufferedWriter writer =
+                new BufferedWriter(new OutputStreamWriter(new PipedOutputStream(containerInput)));
 
         InputStream containerOutput = attachToContainer(containerId, containerInput);
         BufferedReader reader = new BufferedReader(new InputStreamReader(containerOutput));
@@ -206,6 +211,7 @@ public class DockerService implements DisposableBean {
 
     /**
      * Creates a new container
+     *
      * @param containerId the ID of the container to start
      */
     public void startContainer(String containerId) {
@@ -219,35 +225,38 @@ public class DockerService implements DisposableBean {
      * Logs any output from stderr and returns an InputStream to read stdout.
      *
      * @param containerId the ID of the running container to attach to
-     * @param containerInput       the input stream (containerInput) to send to the container
+     * @param containerInput the input stream (containerInput) to send to the container
      * @return InputStream to read the container's stdout
      * @throws IOException if an I/O error occurs
      */
-    public InputStream attachToContainer(String containerId, InputStream containerInput) throws IOException {
+    public InputStream attachToContainer(String containerId, InputStream containerInput)
+            throws IOException {
         PipedInputStream pipeIn = new PipedInputStream();
         PipedOutputStream pipeOut = new PipedOutputStream(pipeIn);
 
         client.attachContainerCmd(containerId)
-                .withLogs(true)
-                .withFollowStream(true)
-                .withStdOut(true)
-                .withStdErr(true)
-                .withStdIn(containerInput)
-                .exec(new ResultCallback.Adapter<>() {
-                    @Override
-                    public void onNext(Frame object) {
-                        try {
-                            String payloadString = new String(object.getPayload(), StandardCharsets.UTF_8);
-                            if (object.getStreamType() == StreamType.STDOUT) {
-                                pipeOut.write(object.getPayload());  // Write stdout data to pipeOut
-                            } else {
-                                LOGGER.warn("Received STDERR from container {}: {}", containerId, payloadString);
-                            }
-                        } catch (IOException e) {
-                            throw new UncheckedIOException(e);
+            .withLogs(true)
+            .withFollowStream(true)
+            .withStdOut(true)
+            .withStdErr(true)
+            .withStdIn(containerInput)
+            .exec(new ResultCallback.Adapter<>() {
+                @Override
+                public void onNext(Frame object) {
+                    try {
+                        String payloadString =
+                                new String(object.getPayload(), StandardCharsets.UTF_8);
+                        if (object.getStreamType() == StreamType.STDOUT) {
+                            pipeOut.write(object.getPayload()); // Write stdout data to pipeOut
+                        } else {
+                            LOGGER.warn("Received STDERR from container {}: {}", containerId,
+                                    payloadString);
                         }
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
                     }
-                });
+                }
+            });
 
         return pipeIn;
     }

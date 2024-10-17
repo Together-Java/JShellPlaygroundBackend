@@ -90,7 +90,6 @@ public class JShellSessionService {
         LOGGER.info("Creating session : {}.", sessionInfo);
         JShellService service = new JShellService(dockerService, this, sessionInfo, config);
 
-
         jshellSessions.put(sessionInfo.id(), service);
         return service;
     }

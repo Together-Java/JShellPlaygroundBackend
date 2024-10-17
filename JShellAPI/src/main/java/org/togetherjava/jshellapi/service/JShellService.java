@@ -2,14 +2,12 @@ package org.togetherjava.jshellapi.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.lang.Nullable;
 
 import org.togetherjava.jshellapi.Config;
 import org.togetherjava.jshellapi.dto.*;
 import org.togetherjava.jshellapi.exceptions.DockerException;
 
 import java.io.*;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,12 +29,8 @@ public class JShellService {
     private final DockerService dockerService;
     private final int startupScriptSize;
 
-    public JShellService(
-            DockerService dockerService,
-            JShellSessionService sessionService,
-            SessionInfo sessionInfo,
-            Config config
-    ) throws DockerException {
+    public JShellService(DockerService dockerService, JShellSessionService sessionService,
+            SessionInfo sessionInfo, Config config) throws DockerException {
         this.dockerService = dockerService;
         this.sessionService = sessionService;
         this.id = sessionInfo.id();
@@ -52,7 +46,8 @@ public class JShellService {
         }
 
         try {
-            ContainerState containerState = dockerService.initializeContainer(containerName(), sessionInfo.startupScriptId());
+            ContainerState containerState = dockerService.initializeContainer(containerName(),
+                    sessionInfo.startupScriptId());
             this.writer = containerState.containerInput();
             this.reader = containerState.containerOutput();
             checkContainerOK();
