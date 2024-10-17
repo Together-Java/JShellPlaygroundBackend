@@ -88,11 +88,9 @@ public class JShellSessionService {
                     "Too many sessions, try again later :(.");
         }
         LOGGER.info("Creating session : {}.", sessionInfo);
-        JShellService service = new JShellService(dockerService, this, sessionInfo.id(),
-                sessionInfo.sessionTimeout(), sessionInfo.renewable(), sessionInfo.evalTimeout(),
-                sessionInfo.evalTimeoutValidationLeeway(), sessionInfo.sysOutCharLimit(),
-                config.dockerMaxRamMegaBytes(), config.dockerCPUsUsage(), config.dockerCPUSetCPUs(),
-                startupScriptsService.get(sessionInfo.startupScriptId()));
+        JShellService service = new JShellService(dockerService, this, sessionInfo, config);
+
+
         jshellSessions.put(sessionInfo.id(), service);
         return service;
     }

@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.lang.Nullable;
 
+import org.togetherjava.jshellapi.Config;
 import org.togetherjava.jshellapi.dto.*;
 import org.togetherjava.jshellapi.exceptions.DockerException;
 
@@ -30,34 +31,30 @@ public class JShellService {
     private final DockerService dockerService;
     private final int startupScriptSize;
 
-    public JShellService(DockerService dockerService, JShellSessionService sessionService,
-            String id, long timeout, boolean renewable, long evalTimeout,
-            long evalTimeoutValidationLeeway, int sysOutCharLimit, int maxMemory, double cpus,
-            @Nullable String cpuSetCpus, String startupScript) throws DockerException {
+    public JShellService(
+            DockerService dockerService,
+            JShellSessionService sessionService,
+            SessionInfo sessionInfo,
+            Config config
+    ) throws DockerException {
         this.dockerService = dockerService;
         this.sessionService = sessionService;
-        this.id = id;
-        this.timeout = timeout;
-        this.renewable = renewable;
-        this.evalTimeout = evalTimeout;
-        this.evalTimeoutValidationLeeway = evalTimeoutValidationLeeway;
+        this.id = sessionInfo.id();
+        this.timeout = config.dockerConnectionTimeout();
+        this.renewable = sessionInfo.renewable();
+        this.evalTimeout = sessionInfo.evalTimeout();
+        this.evalTimeoutValidationLeeway = sessionInfo.evalTimeoutValidationLeeway();
         this.lastTimeoutUpdate = Instant.now();
+
         if (!dockerService.isDead(containerName())) {
             LOGGER.warn("Tried to create an existing container {}.", containerName());
             throw new DockerException("The session isn't completely destroyed, try again later.");
         }
+
         try {
-            String containerId = dockerService.spawnContainer(maxMemory, (long) Math.ceil(cpus),
-                    cpuSetCpus, containerName(), Duration.ofSeconds(evalTimeout), sysOutCharLimit);
-            PipedInputStream containerInput = new PipedInputStream();
-            this.writer = new BufferedWriter(
-                    new OutputStreamWriter(new PipedOutputStream(containerInput)));
-            InputStream containerOutput =
-                    dockerService.startAndAttachToContainer(containerId, containerInput);
-            reader = new BufferedReader(new InputStreamReader(containerOutput));
-            writer.write(sanitize(startupScript));
-            writer.newLine();
-            writer.flush();
+            ContainerState containerState = dockerService.initializeContainer(containerName(), sessionInfo.startupScriptId());
+            this.writer = containerState.containerInput();
+            this.reader = containerState.containerOutput();
             checkContainerOK();
             startupScriptSize = Integer.parseInt(reader.readLine());
         } catch (Exception e) {
@@ -127,7 +124,7 @@ public class JShellService {
                     int errorCount = Integer.parseInt(reader.readLine());
                     List<String> errors = new ArrayList<>();
                     for (int i = 0; i < errorCount; i++) {
-                        errors.add(desanitize(reader.readLine()));
+                        errors.add(Utils.deSanitizeStartupScript((reader.readLine())));
                     }
                     yield new JShellEvalAbortionCause.CompileTimeErrorAbortionCause(errors);
                 }
@@ -140,7 +137,7 @@ public class JShellService {
             abortion = new JShellEvalAbortion(causeSource, remainingSource, abortionCause);
         }
         boolean stdoutOverflow = Boolean.parseBoolean(reader.readLine());
-        String stdout = desanitize(reader.readLine());
+        String stdout = Utils.deSanitizeStartupScript(reader.readLine());
         return new JShellResult(snippetResults, abortion, stdoutOverflow, stdout);
     }
 
@@ -280,14 +277,6 @@ public class JShellService {
 
     private void stopOperation() {
         doingOperation = false;
-    }
-
-    private static String sanitize(String s) {
-        return s.replace("\\", "\\\\").replace("\n", "\\n");
-    }
-
-    private static String desanitize(String text) {
-        return text.replace("\\n", "\n").replace("\\\\", "\\");
     }
 
     private static String cleanCode(String code) {
