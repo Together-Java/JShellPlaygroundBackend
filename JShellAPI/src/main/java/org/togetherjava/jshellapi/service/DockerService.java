@@ -31,7 +31,7 @@ public class DockerService implements DisposableBean {
     private final DockerClient client;
     private final Config config;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
-    private final ConcurrentHashMap<StartupScriptId, String> cachedContainers =
+    private final ConcurrentHashMap<StartupScriptId, ContainerState> cachedContainers =
             new ConcurrentHashMap<>();
     private final StartupScriptsService startupScriptsService;
 
@@ -93,12 +93,10 @@ public class DockerService implements DisposableBean {
      * Pulls the Docker image.
      */
     private void pullImage() throws InterruptedException {
-        if (!isImagePresentLocally()) {
-            client.pullImageCmd(jshellWrapperBaseImageName)
-                .withTag("master")
-                .exec(new PullImageResultCallback())
-                .awaitCompletion(5, TimeUnit.MINUTES);
-        }
+        client.pullImageCmd(jshellWrapperBaseImageName)
+            .withTag("master")
+            .exec(new PullImageResultCallback())
+            .awaitCompletion(5, TimeUnit.MINUTES);
     }
 
     /**
@@ -107,7 +105,7 @@ public class DockerService implements DisposableBean {
      * @param name The name of the container to create.
      * @return The ID of the created container.
      */
-    public String createContainer(String name) {
+    private String createContainer(String name) {
         HostConfig hostConfig = HostConfig.newHostConfig()
             .withAutoRemove(true)
             .withInit(true)
@@ -146,13 +144,13 @@ public class DockerService implements DisposableBean {
         if (startupScriptId == null || cachedContainers.isEmpty()
                 || !cachedContainers.containsKey(startupScriptId)) {
             String containerId = createContainer(name);
-            return setupContainerWithScript(containerId, false, startupScriptId);
+            return setupContainerWithScript(containerId, startupScriptId);
         }
-        String containerId = cachedContainers.get(startupScriptId);
+        ContainerState containerState = cachedContainers.get(startupScriptId);
         executor.submit(() -> initializeCachedContainer(startupScriptId));
 
-        client.renameContainerCmd(containerId).withName(name).exec();
-        return setupContainerWithScript(containerId, true, startupScriptId);
+        client.renameContainerCmd(containerState.containerId()).withName(name).exec();
+        return containerState;
     }
 
     /**
@@ -165,17 +163,9 @@ public class DockerService implements DisposableBean {
         String id = createContainer(containerName);
         startContainer(id);
 
-        try (PipedInputStream containerInput = new PipedInputStream();
-                BufferedWriter writer = new BufferedWriter(
-                        new OutputStreamWriter(new PipedOutputStream(containerInput)))) {
-            InputStream containerOutput = attachToContainer(id, containerInput, true);
-
-            writer.write(Utils.sanitizeStartupScript(startupScriptsService.get(startupScriptId)));
-            writer.newLine();
-            writer.flush();
-            containerOutput.close();
-
-            cachedContainers.put(startupScriptId, id);
+        try {
+            ContainerState containerState = setupContainerWithScript(id, startupScriptId);
+            cachedContainers.put(startupScriptId, containerState);
         } catch (IOException e) {
             killContainerByName(containerName);
             throw new RuntimeException(e);
@@ -183,32 +173,26 @@ public class DockerService implements DisposableBean {
     }
 
     /**
-     *
      * @param containerId The id of the container
-     * @param isCached Indicator if the container is cached or new
      * @param startupScriptId The startup script id of the session
      * @return ContainerState of the spawned container.
      * @throws IOException if an I/O error occurs
      */
-    private ContainerState setupContainerWithScript(String containerId, boolean isCached,
+    private ContainerState setupContainerWithScript(String containerId,
             StartupScriptId startupScriptId) throws IOException {
-        if (!isCached) {
-            startContainer(containerId);
-        }
+        startContainer(containerId);
         PipedInputStream containerInput = new PipedInputStream();
         BufferedWriter writer =
                 new BufferedWriter(new OutputStreamWriter(new PipedOutputStream(containerInput)));
 
-        InputStream containerOutput = attachToContainer(containerId, containerInput, false);
+        InputStream containerOutput = attachToContainer(containerId, containerInput);
         BufferedReader reader = new BufferedReader(new InputStreamReader(containerOutput));
 
-        if (!isCached) {
-            writer.write(Utils.sanitizeStartupScript(startupScriptsService.get(startupScriptId)));
-            writer.newLine();
-            writer.flush();
-        }
+        writer.write(Utils.sanitizeStartupScript(startupScriptsService.get(startupScriptId)));
+        writer.newLine();
+        writer.flush();
 
-        return new ContainerState(isCached, containerId, reader, writer);
+        return new ContainerState(containerId, reader, writer);
     }
 
     /**
@@ -216,7 +200,7 @@ public class DockerService implements DisposableBean {
      *
      * @param containerId the ID of the container to start
      */
-    public void startContainer(String containerId) {
+    private void startContainer(String containerId) {
         if (!isContainerRunning(containerId)) {
             client.startContainerCmd(containerId).exec();
         }
@@ -228,12 +212,11 @@ public class DockerService implements DisposableBean {
      *
      * @param containerId The ID of the running container to attach to.
      * @param containerInput The input stream (containerInput) to send to the container.
-     * @param isCached Indicator if the container is cached to prevent writing to output stream.
      * @return InputStream to read the container's stdout
      * @throws IOException if an I/O error occurs
      */
-    public InputStream attachToContainer(String containerId, InputStream containerInput,
-            boolean isCached) throws IOException {
+    private InputStream attachToContainer(String containerId, InputStream containerInput)
+            throws IOException {
         PipedInputStream pipeIn = new PipedInputStream();
         PipedOutputStream pipeOut = new PipedOutputStream(pipeIn);
 
@@ -250,9 +233,7 @@ public class DockerService implements DisposableBean {
                         String payloadString =
                                 new String(object.getPayload(), StandardCharsets.UTF_8);
                         if (object.getStreamType() == StreamType.STDOUT) {
-                            if (!isCached) {
-                                pipeOut.write(object.getPayload()); // Write stdout data to pipeOut
-                            }
+                            pipeOut.write(object.getPayload()); // Write stdout data to pipeOut
                         } else {
                             LOGGER.warn("Received STDERR from container {}: {}", containerId,
                                     payloadString);
@@ -262,7 +243,6 @@ public class DockerService implements DisposableBean {
                     }
                 }
             });
-
         return pipeIn;
     }
 
