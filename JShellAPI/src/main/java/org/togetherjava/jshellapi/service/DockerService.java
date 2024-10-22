@@ -11,6 +11,7 @@ import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
 import org.togetherjava.jshellapi.Config;
@@ -58,7 +59,7 @@ public class DockerService implements DisposableBean {
             pullImage();
         }
         cleanupLeftovers(WORKER_UNIQUE_ID);
-        executor.submit(() -> initializeCachedContainer(StartupScriptId.EMPTY));
+        executor.submit(() -> initializeCachedContainer(StartupScriptId.CUSTOM_DEFAULT));
     }
 
     private void cleanupLeftovers(UUID currentId) {
@@ -106,6 +107,7 @@ public class DockerService implements DisposableBean {
      * @return The ID of the created container.
      */
     private String createContainer(String name) {
+        LOGGER.debug("Creating container '{}'", name);
         HostConfig hostConfig = HostConfig.newHostConfig()
             .withAutoRemove(true)
             .withInit(true)
@@ -137,10 +139,13 @@ public class DockerService implements DisposableBean {
      *
      * @param name Name of the container.
      * @param startupScriptId Script to initialize the container with.
+     * @throws IOException if an I/O error occurs.
      * @return The ContainerState of the newly created container.
      */
-    public ContainerState initializeContainer(String name, StartupScriptId startupScriptId)
-            throws IOException {
+    public ContainerState initializeContainer(String name,
+            @Nullable StartupScriptId startupScriptId) throws IOException {
+        LOGGER.info("Initializing container '{}' with Startup script ID: {}", name,
+                startupScriptId);
         if (startupScriptId == null || cachedContainers.isEmpty()
                 || !cachedContainers.containsKey(startupScriptId)) {
             String containerId = createContainer(name);
@@ -159,7 +164,8 @@ public class DockerService implements DisposableBean {
      * @param startupScriptId Script to initialize the container with.
      */
     private void initializeCachedContainer(StartupScriptId startupScriptId) {
-        String containerName = cachedContainerName();
+        LOGGER.info("Initializing cached container with Startup script ID: {}", startupScriptId);
+        String containerName = newCachedContainerName();
         String id = createContainer(containerName);
         startContainer(id);
 
@@ -167,12 +173,16 @@ public class DockerService implements DisposableBean {
             ContainerState containerState = setupContainerWithScript(id, startupScriptId);
             cachedContainers.put(startupScriptId, containerState);
         } catch (IOException e) {
+            LOGGER.error("Could not initialize container {}", id, e);
             killContainerByName(containerName);
             throw new RuntimeException(e);
         }
     }
 
     /**
+     * Setup container with startup script and also initializes input and output streams for the
+     * container.
+     *
      * @param containerId The id of the container
      * @param startupScriptId The startup script id of the session
      * @return ContainerState of the spawned container.
@@ -180,6 +190,8 @@ public class DockerService implements DisposableBean {
      */
     private ContainerState setupContainerWithScript(String containerId,
             StartupScriptId startupScriptId) throws IOException {
+        LOGGER.info("Setting up container with id {} with Startup script ID: {}", containerId,
+                startupScriptId);
         startContainer(containerId);
         PipedInputStream containerInput = new PipedInputStream();
         BufferedWriter writer =
@@ -201,9 +213,13 @@ public class DockerService implements DisposableBean {
      * @param containerId the ID of the container to start
      */
     private void startContainer(String containerId) {
-        if (!isContainerRunning(containerId)) {
-            client.startContainerCmd(containerId).exec();
+        boolean isRunning = isContainerRunning(containerId);
+        if (isRunning) {
+            LOGGER.debug("Container {} is already running.", containerId);
+            return;
         }
+        LOGGER.debug("Container {} is not running. Starting it now.", containerId);
+        client.startContainerCmd(containerId).exec();
     }
 
     /**
@@ -233,7 +249,7 @@ public class DockerService implements DisposableBean {
                         String payloadString =
                                 new String(object.getPayload(), StandardCharsets.UTF_8);
                         if (object.getStreamType() == StreamType.STDOUT) {
-                            pipeOut.write(object.getPayload()); // Write stdout data to pipeOut
+                            pipeOut.write(object.getPayload());
                         } else {
                             LOGGER.warn("Received STDERR from container {}: {}", containerId,
                                     payloadString);
@@ -257,7 +273,7 @@ public class DockerService implements DisposableBean {
         return Boolean.TRUE.equals(containerResponse.getState().getRunning());
     }
 
-    private String cachedContainerName() {
+    private String newCachedContainerName() {
         return "cached_session_" + UUID.randomUUID();
     }
 
