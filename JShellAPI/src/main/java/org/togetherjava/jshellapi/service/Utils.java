@@ -28,4 +28,12 @@ public class Utils {
         }
         return Arrays.stream(enumConstants).filter(predicate);
     }
+
+    public static String sanitizeStartupScript(String s) {
+        return s.replace("\\", "\\\\").replace("\n", "\\n");
+    }
+
+    public static String deSanitizeStartupScript(String text) {
+        return text.replace("\\n", "\n").replace("\\\\", "\\");
+    }
 }

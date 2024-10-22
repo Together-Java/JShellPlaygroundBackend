@@ -2,6 +2,7 @@ package org.togetherjava.jshellapi.service;
 
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
+import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.command.PullImageResultCallback;
 import com.github.dockerjava.api.model.*;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
@@ -14,12 +15,13 @@ import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
 import org.togetherjava.jshellapi.Config;
+import org.togetherjava.jshellapi.dto.ContainerState;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 @Service
 public class DockerService implements DisposableBean {
@@ -28,10 +30,17 @@ public class DockerService implements DisposableBean {
     private static final UUID WORKER_UNIQUE_ID = UUID.randomUUID();
 
     private final DockerClient client;
+    private final Config config;
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final ConcurrentHashMap<StartupScriptId, ContainerState> cachedContainers =
+            new ConcurrentHashMap<>();
+    private final StartupScriptsService startupScriptsService;
 
     private final String jshellWrapperBaseImageName;
 
-    public DockerService(Config config) {
+    public DockerService(Config config, StartupScriptsService startupScriptsService)
+            throws InterruptedException {
+        this.startupScriptsService = startupScriptsService;
         DefaultDockerClientConfig clientConfig =
                 DefaultDockerClientConfig.createDefaultConfigBuilder().build();
         ApacheDockerHttpClient httpClient =
@@ -41,11 +50,16 @@ public class DockerService implements DisposableBean {
                     .connectionTimeout(Duration.ofSeconds(config.dockerConnectionTimeout()))
                     .build();
         this.client = DockerClientImpl.getInstance(clientConfig, httpClient);
+        this.config = config;
 
         this.jshellWrapperBaseImageName =
                 config.jshellWrapperImageName().split(Config.JSHELL_WRAPPER_IMAGE_NAME_TAG)[0];
 
+        if (!isImagePresentLocally()) {
+            pullImage();
+        }
         cleanupLeftovers(WORKER_UNIQUE_ID);
+        executor.submit(() -> initializeCachedContainer(StartupScriptId.CUSTOM_DEFAULT));
     }
 
     private void cleanupLeftovers(UUID currentId) {
@@ -62,48 +76,162 @@ public class DockerService implements DisposableBean {
         }
     }
 
-    public String spawnContainer(long maxMemoryMegs, long cpus, @Nullable String cpuSetCpus,
-            String name, Duration evalTimeout, long sysoutLimit) throws InterruptedException {
-
-        boolean presentLocally = client.listImagesCmd()
+    /**
+     * Checks if the Docker image with the given name and tag is present locally.
+     *
+     * @return true if the image is present, false otherwise.
+     */
+    private boolean isImagePresentLocally() {
+        return client.listImagesCmd()
             .withFilter("reference", List.of(jshellWrapperBaseImageName))
             .exec()
             .stream()
             .flatMap(it -> Arrays.stream(it.getRepoTags()))
             .anyMatch(it -> it.endsWith(Config.JSHELL_WRAPPER_IMAGE_NAME_TAG));
+    }
 
-        if (!presentLocally) {
-            client.pullImageCmd(jshellWrapperBaseImageName)
-                .withTag("master")
-                .exec(new PullImageResultCallback())
-                .awaitCompletion(5, TimeUnit.MINUTES);
-        }
+    /**
+     * Pulls the Docker image.
+     */
+    private void pullImage() throws InterruptedException {
+        client.pullImageCmd(jshellWrapperBaseImageName)
+            .withTag("master")
+            .exec(new PullImageResultCallback())
+            .awaitCompletion(5, TimeUnit.MINUTES);
+    }
+
+    /**
+     * Creates a Docker container with the given name.
+     *
+     * @param name The name of the container to create.
+     * @return The ID of the created container.
+     */
+    private String createContainer(String name) {
+        LOGGER.debug("Creating container '{}'", name);
+        HostConfig hostConfig = HostConfig.newHostConfig()
+            .withAutoRemove(true)
+            .withInit(true)
+            .withCapDrop(Capability.ALL)
+            .withNetworkMode("none")
+            .withPidsLimit(2000L)
+            .withReadonlyRootfs(true)
+            .withMemory((long) config.dockerMaxRamMegaBytes() * 1024 * 1024)
+            .withCpuCount((long) Math.ceil(config.dockerCPUsUsage()))
+            .withCpusetCpus(config.dockerCPUSetCPUs());
 
         return client
             .createContainerCmd(jshellWrapperBaseImageName + Config.JSHELL_WRAPPER_IMAGE_NAME_TAG)
-            .withHostConfig(HostConfig.newHostConfig()
-                .withAutoRemove(true)
-                .withInit(true)
-                .withCapDrop(Capability.ALL)
-                .withNetworkMode("none")
-                .withPidsLimit(2000L)
-                .withReadonlyRootfs(true)
-                .withMemory(maxMemoryMegs * 1024 * 1024)
-                .withCpuCount(cpus)
-                .withCpusetCpus(cpuSetCpus))
+            .withHostConfig(hostConfig)
             .withStdinOpen(true)
             .withAttachStdin(true)
             .withAttachStderr(true)
             .withAttachStdout(true)
-            .withEnv("evalTimeoutSeconds=" + evalTimeout.toSeconds(),
-                    "sysOutCharLimit=" + sysoutLimit)
+            .withEnv("evalTimeoutSeconds=" + config.evalTimeoutSeconds(),
+                    "sysOutCharLimit=" + config.sysOutCharLimit())
             .withLabels(Map.of(WORKER_LABEL, WORKER_UNIQUE_ID.toString()))
             .withName(name)
             .exec()
             .getId();
     }
 
-    public InputStream startAndAttachToContainer(String containerId, InputStream stdin)
+    /**
+     * Spawns a new Docker container with specified configurations.
+     *
+     * @param name Name of the container.
+     * @param startupScriptId Script to initialize the container with.
+     * @throws IOException if an I/O error occurs.
+     * @return The ContainerState of the newly created container.
+     */
+    public ContainerState initializeContainer(String name,
+            @Nullable StartupScriptId startupScriptId) throws IOException {
+        LOGGER.info("Initializing container '{}' with Startup script ID: {}", name,
+                startupScriptId);
+        if (startupScriptId == null || cachedContainers.isEmpty()
+                || !cachedContainers.containsKey(startupScriptId)) {
+            String containerId = createContainer(name);
+            return setupContainerWithScript(containerId, startupScriptId);
+        }
+        ContainerState containerState = cachedContainers.get(startupScriptId);
+        executor.submit(() -> initializeCachedContainer(startupScriptId));
+
+        client.renameContainerCmd(containerState.containerId()).withName(name).exec();
+        return containerState;
+    }
+
+    /**
+     * Initializes a new cached docker container with specified configurations.
+     *
+     * @param startupScriptId Script to initialize the container with.
+     */
+    private void initializeCachedContainer(StartupScriptId startupScriptId) {
+        LOGGER.info("Initializing cached container with Startup script ID: {}", startupScriptId);
+        String containerName = newCachedContainerName();
+        String id = createContainer(containerName);
+        startContainer(id);
+
+        try {
+            ContainerState containerState = setupContainerWithScript(id, startupScriptId);
+            cachedContainers.put(startupScriptId, containerState);
+        } catch (IOException e) {
+            LOGGER.error("Could not initialize container {}", id, e);
+            killContainerByName(containerName);
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Setup container with startup script and also initializes input and output streams for the
+     * container.
+     *
+     * @param containerId The id of the container
+     * @param startupScriptId The startup script id of the session
+     * @return ContainerState of the spawned container.
+     * @throws IOException if an I/O error occurs
+     */
+    private ContainerState setupContainerWithScript(String containerId,
+            StartupScriptId startupScriptId) throws IOException {
+        LOGGER.info("Setting up container with id {} with Startup script ID: {}", containerId,
+                startupScriptId);
+        startContainer(containerId);
+        PipedInputStream containerInput = new PipedInputStream();
+        BufferedWriter writer =
+                new BufferedWriter(new OutputStreamWriter(new PipedOutputStream(containerInput)));
+
+        InputStream containerOutput = attachToContainer(containerId, containerInput);
+        BufferedReader reader = new BufferedReader(new InputStreamReader(containerOutput));
+
+        writer.write(Utils.sanitizeStartupScript(startupScriptsService.get(startupScriptId)));
+        writer.newLine();
+        writer.flush();
+
+        return new ContainerState(containerId, reader, writer);
+    }
+
+    /**
+     * Creates a new container
+     *
+     * @param containerId the ID of the container to start
+     */
+    private void startContainer(String containerId) {
+        boolean isRunning = isContainerRunning(containerId);
+        if (isRunning) {
+            LOGGER.debug("Container {} is already running.", containerId);
+            return;
+        }
+        LOGGER.debug("Container {} is not running. Starting it now.", containerId);
+        client.startContainerCmd(containerId).exec();
+    }
+
+    /**
+     * Attaches to a running Docker container's input (stdin) and output streams (stdout, stderr).
+     * Logs any output from stderr and returns an InputStream to read stdout.
+     *
+     * @param containerId The ID of the running container to attach to.
+     * @param containerInput The input stream (containerInput) to send to the container.
+     * @return InputStream to read the container's stdout
+     * @throws IOException if an I/O error occurs
+     */
+    private InputStream attachToContainer(String containerId, InputStream containerInput)
             throws IOException {
         PipedInputStream pipeIn = new PipedInputStream();
         PipedOutputStream pipeOut = new PipedOutputStream(pipeIn);
@@ -113,7 +241,7 @@ public class DockerService implements DisposableBean {
             .withFollowStream(true)
             .withStdOut(true)
             .withStdErr(true)
-            .withStdIn(stdin)
+            .withStdIn(containerInput)
             .exec(new ResultCallback.Adapter<>() {
                 @Override
                 public void onNext(Frame object) {
@@ -131,9 +259,22 @@ public class DockerService implements DisposableBean {
                     }
                 }
             });
-
-        client.startContainerCmd(containerId).exec();
         return pipeIn;
+    }
+
+    /**
+     * Checks if the Docker container with the given ID is currently running.
+     *
+     * @param containerId the ID of the container to check
+     * @return true if the container is running, false otherwise
+     */
+    public boolean isContainerRunning(String containerId) {
+        InspectContainerResponse containerResponse = client.inspectContainerCmd(containerId).exec();
+        return Boolean.TRUE.equals(containerResponse.getState().getRunning());
+    }
+
+    private String newCachedContainerName() {
+        return "cached_session_" + UUID.randomUUID();
     }
 
     public void killContainerByName(String name) {
@@ -156,6 +297,7 @@ public class DockerService implements DisposableBean {
     @Override
     public void destroy() throws Exception {
         LOGGER.info("destroy() called. Destroying all containers...");
+        executor.shutdown();
         cleanupLeftovers(UUID.randomUUID());
         client.close();
     }
