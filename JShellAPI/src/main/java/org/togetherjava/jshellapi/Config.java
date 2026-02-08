@@ -26,33 +26,33 @@ public record Config(long regularSessionTimeoutSeconds, long oneTimeSessionTimeo
 
     public Config {
         if (regularSessionTimeoutSeconds <= 0)
-            throw new IllegalArgumentException("Invalid value " + regularSessionTimeoutSeconds);
+            throw new IllegalArgumentException("Invalid regularSessionTimeoutSeconds " + regularSessionTimeoutSeconds);
         if (oneTimeSessionTimeoutSeconds <= 0)
-            throw new IllegalArgumentException("Invalid value " + oneTimeSessionTimeoutSeconds);
+            throw new IllegalArgumentException("Invalid oneTimeSessionTimeoutSeconds " + oneTimeSessionTimeoutSeconds);
         if (evalTimeoutSeconds <= 0)
-            throw new IllegalArgumentException("Invalid value " + evalTimeoutSeconds);
+            throw new IllegalArgumentException("Invalid evalTimeoutSeconds " + evalTimeoutSeconds);
         if (evalTimeoutValidationLeeway <= 0)
-            throw new IllegalArgumentException("Invalid value " + evalTimeoutSeconds);
+            throw new IllegalArgumentException("Invalid evalTimeoutValidationLeeway " + evalTimeoutSeconds);
         if (sysOutCharLimit <= 0)
-            throw new IllegalArgumentException("Invalid value " + sysOutCharLimit);
+            throw new IllegalArgumentException("Invalid sysOutCharLimit " + sysOutCharLimit);
         if (maxAliveSessions <= 0)
-            throw new IllegalArgumentException("Invalid value " + maxAliveSessions);
+            throw new IllegalArgumentException("Invalid maxAliveSessions " + maxAliveSessions);
         if (dockerMaxRamMegaBytes <= 0)
-            throw new IllegalArgumentException("Invalid value " + dockerMaxRamMegaBytes);
+            throw new IllegalArgumentException("Invalid dockerMaxRamMegaBytes " + dockerMaxRamMegaBytes);
         if (dockerCPUsUsage <= 0)
-            throw new IllegalArgumentException("Invalid value " + dockerCPUsUsage);
+            throw new IllegalArgumentException("Invalid dockerCPUsUsage " + dockerCPUsUsage);
         if (dockerCPUSetCPUs != null && !dockerCPUSetCPUs.matches("[1-9]?\\d([-,]\\d?\\d)?"))
-            throw new IllegalArgumentException("Invalid value " + dockerCPUSetCPUs);
+            throw new IllegalArgumentException("Invalid dockerCPUSetCPUs " + dockerCPUSetCPUs);
         if (schedulerSessionKillScanRateSeconds <= 0)
             throw new IllegalArgumentException(
-                    "Invalid value " + schedulerSessionKillScanRateSeconds);
+                    "Invalid schedulerSessionKillScanRateSeconds " + schedulerSessionKillScanRateSeconds);
         if (dockerResponseTimeout <= 0)
-            throw new IllegalArgumentException("Invalid value " + dockerResponseTimeout);
+            throw new IllegalArgumentException("Invalid dockerResponseTimeout " + dockerResponseTimeout);
         if (dockerConnectionTimeout <= 0)
-            throw new IllegalArgumentException("Invalid value " + dockerConnectionTimeout);
+            throw new IllegalArgumentException("Invalid dockerConnectionTimeout " + dockerConnectionTimeout);
 
         if (!checkJShellWrapperImageName(jshellWrapperImageName)) {
-            throw new IllegalArgumentException("Invalid value " + jshellWrapperImageName);
+            throw new IllegalArgumentException("Invalid jshellWrapperImageName " + jshellWrapperImageName);
         }
     }
 }
