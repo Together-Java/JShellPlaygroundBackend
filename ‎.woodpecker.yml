@@ -1,7 +1,9 @@
 when:
   branch:
     - master
-  event: push
+  event:
+    - push
+    - manual
 
 steps:
   publish:
