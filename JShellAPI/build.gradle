@@ -10,7 +10,7 @@ plugins {
 dependencies {
     implementation project(':JShellWrapper')
     implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'com.github.docker-java:docker-java-transport-httpclient5:3.3.6'
+    implementation 'com.github.docker-java:docker-java-transport-httpclient5:3.4.1'
     implementation 'com.github.docker-java:docker-java-core:3.3.6'
 
     testImplementation('org.springframework.boot:spring-boot-starter-test') {
